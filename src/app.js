@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/authRoutes');
+const { swaggerUi, swaggerSpec } = require('../swagger');
 
 const app = express();
 
@@ -14,6 +15,9 @@ app.use(morgan('dev'));
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
 });
+
+// Swagger API Docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Centralized error handler
 app.use((err, req, res, next) => {

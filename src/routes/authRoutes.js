@@ -4,6 +4,63 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const router = express.Router();
 const User = require('../models/User');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication and authorization routes
+ */
+
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register a new school
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: School registered successfully
+ *       400:
+ *         description: Bad request
+ */
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Login to the system
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Unauthorized
+ */
+
 // Register School Route
 router.post('/register', registerSchool);
 
