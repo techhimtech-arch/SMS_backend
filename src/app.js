@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const classRoutes = require('./routes/classRoutes');
 const { swaggerUi, swaggerSpec } = require('../swagger');
 
 const app = express();
@@ -29,5 +30,6 @@ app.use((err, req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/classes', classRoutes);
 
 module.exports = app;
