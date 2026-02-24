@@ -44,7 +44,7 @@ const registerSchool = async (req, res) => {
   }
 };
 
-// Login
+// Login Controller
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -52,25 +52,36 @@ const login = async (req, res) => {
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Verify password
+    // Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     // Generate JWT
     const token = jwt.sign(
       { userId: user._id, schoolId: user.schoolId, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '7d' }
     );
 
-    res.status(200).json({ token });
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        token,
+        user: {
+          name: user.name,
+          role: user.role,
+          schoolId: user.schoolId,
+        },
+      },
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
