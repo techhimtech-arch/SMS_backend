@@ -13,7 +13,7 @@ const User = require('../models/User');
 
 /**
  * @swagger
- * /auth/register:
+ * /api/auth/register:
  *   post:
  *     summary: Register a new school
  *     tags: [Auth]
@@ -39,7 +39,7 @@ const User = require('../models/User');
 
 /**
  * @swagger
- * /auth/login:
+ * /api/auth/login:
  *   post:
  *     summary: Login to the system
  *     tags: [Auth]
