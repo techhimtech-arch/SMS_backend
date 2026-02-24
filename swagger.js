@@ -10,12 +10,11 @@ const options = {
       description: 'Multi-school SaaS backend APIs',
     },
     servers: [
-      {
-        url: 'https://sms-backend-d19v.onrender.com',
-      },
-    ],
+  { url: 'https://sms-backend-d19v.onrender.com' },
+  { url: 'http://localhost:5000' } // Replace 5000 with your local port
+],
   },
-  apis: ['./routes/*.js'], // Files containing annotations for the OpenAPI Specification
+ apis: ['./src/routes/*.js'] // Files containing annotations for the OpenAPI Specification
 };
 
 const swaggerSpec = swaggerJsdoc(options);
