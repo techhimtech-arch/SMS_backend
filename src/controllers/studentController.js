@@ -1,6 +1,7 @@
 const Student = require('../models/Student');
 const asyncHandler = require('express-async-handler');
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose'); // Add this at the top
 
 // Create a new student
 const createStudent = asyncHandler(async (req, res) => {
@@ -49,6 +50,26 @@ const createStudent = asyncHandler(async (req, res) => {
   }
 });
 
+// Fetch all students for the logged-in user's school
+const getStudents = async (req, res) => {
+  try {
+    const { schoolId } = req.user; // Extract schoolId from the authenticated user
+
+    console.log('Querying students with schoolId:', schoolId); // Debug log for schoolId
+
+    // Convert schoolId to ObjectId using `new`
+    const students = await Student.find({ school: new mongoose.Types.ObjectId(schoolId) });
+
+    console.log('Query result:', students); // Debug log for query result
+
+    res.status(200).json({ success: true, data: students });
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   createStudent,
+  getStudents,
 };

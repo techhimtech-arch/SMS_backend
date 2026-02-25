@@ -2,6 +2,7 @@ const express = require('express');
 const { createStudent } = require('../controllers/studentController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { check } = require('express-validator');
+const { getStudents } = require('../controllers/studentController');
 
 const router = express.Router();
 
@@ -67,5 +68,21 @@ router.post(
   ],
   createStudent
 );
+
+/**
+ * @swagger
+ * /api/students:
+ *   get:
+ *     summary: Get all students for the logged-in user's school
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of students
+ *       500:
+ *         description: Server error
+ */
+router.get('/', authMiddleware, getStudents);
 
 module.exports = router;
