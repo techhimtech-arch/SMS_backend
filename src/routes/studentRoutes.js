@@ -1,4 +1,8 @@
 const express = require('express');
+const { createStudent } = require('../controllers/studentController');
+const authMiddleware = require('../middlewares/authMiddleware');
+const { check } = require('express-validator');
+
 const router = express.Router();
 
 /**
@@ -10,10 +14,12 @@ const router = express.Router();
 
 /**
  * @swagger
- * /students:
+ * /api/students:
  *   post:
  *     summary: Add a new student
  *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -21,98 +27,45 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               name:
+ *               admissionNumber:
  *                 type: string
- *               age:
- *                 type: integer
- *               class:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               classId:
+ *                 type: string
+ *               sectionId:
+ *                 type: string
+ *               parentName:
+ *                 type: string
+ *               parentPhone:
+ *                 type: string
+ *               address:
  *                 type: string
  *     responses:
  *       201:
  *         description: Student added successfully
  *       400:
- *         description: Bad request
+ *         description: Validation error
  */
-
-/**
- * @swagger
- * /students:
- *   get:
- *     summary: Get all students
- *     tags: [Students]
- *     responses:
- *       200:
- *         description: List of students
- */
-
-/**
- * @swagger
- * /students/{id}:
- *   get:
- *     summary: Get a student by ID
- *     tags: [Students]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Student details
- *       404:
- *         description: Student not found
- */
-
-/**
- * @swagger
- * /students/{id}:
- *   put:
- *     summary: Update a student by ID
- *     tags: [Students]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               age:
- *                 type: integer
- *               class:
- *                 type: string
- *     responses:
- *       200:
- *         description: Student updated successfully
- *       404:
- *         description: Student not found
- */
-
-/**
- * @swagger
- * /students/{id}:
- *   delete:
- *     summary: Delete a student by ID
- *     tags: [Students]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Student deleted successfully
- *       404:
- *         description: Student not found
- */
+router.post(
+  '/',
+  authMiddleware, // Ensure this middleware is applied
+  [
+    check('admissionNumber', 'Admission number is required').notEmpty(),
+    check('firstName', 'First name is required').notEmpty(),
+    check('classId', 'Class ID is required').notEmpty(),
+    check('sectionId', 'Section ID is required').notEmpty(),
+    check('parentPhone', 'Invalid phone number').optional().isMobilePhone(),
+  ],
+  createStudent
+);
 
 module.exports = router;

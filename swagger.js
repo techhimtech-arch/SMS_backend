@@ -14,7 +14,7 @@ const options = {
   { url: 'http://localhost:5000' } // Replace 5000 with your local port
 ],
   },
- apis: ['./src/routes/*.js'] // Files containing annotations for the OpenAPI Specification
+ apis: ['./src/routes/*.js', './src/routes/studentRoutes.js'] // Include studentRoutes.js for Swagger documentation
 };
 
 const swaggerSpec = swaggerJsdoc(options);

@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const classRoutes = require('./routes/classRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
+const studentRoutes = require('./routes/studentRoutes');
 const { swaggerUi, swaggerSpec } = require('../swagger');
 
 const app = express();
@@ -13,6 +14,12 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(morgan('dev'));
+
+// Middleware to log incoming requests
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.url}`);
+  next();
+});
 
 // Test route
 app.get('/health', (req, res) => {
@@ -33,5 +40,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/sections', sectionRoutes);
+app.use('/api/students', studentRoutes);
 
 module.exports = app;

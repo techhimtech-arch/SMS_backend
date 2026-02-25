@@ -10,6 +10,15 @@ const authMiddleware = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded Token:', decoded); // Debugging log to verify token payload
+
+    if (!decoded.schoolId) {
+      console.error('Missing schoolId in token payload');
+      return res.status(401).json({ success: false, message: 'Invalid token: Missing schoolId' });
+    }
+
+    // Check if schoolId is present
+    console.log(decoded); // Check if schoolId is present
 
     // Attach user info to req.user
     req.user = decoded;
