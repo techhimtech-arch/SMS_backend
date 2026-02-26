@@ -6,6 +6,7 @@ const userRoutes = require('./routes/userRoutes');
 const classRoutes = require('./routes/classRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
 const { swaggerUi, swaggerSpec } = require('../swagger');
 
 const app = express();
@@ -41,5 +42,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/sections', sectionRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 module.exports = app;

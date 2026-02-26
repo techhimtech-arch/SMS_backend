@@ -10,11 +10,11 @@ const options = {
       description: 'Multi-school SaaS backend APIs',
     },
     servers: [
-  { url: 'https://sms-backend-d19v.onrender.com' },
-  { url: 'http://localhost:5000' } // Replace 5000 with your local port
-],
+      { url: 'https://sms-backend-d19v.onrender.com' },
+      { url: 'http://localhost:5000' } // Replace 5000 with your local port
+    ],
   },
- apis: ['./src/routes/*.js', './src/routes/studentRoutes.js'] // Include studentRoutes.js for Swagger documentation
+  apis: ['./src/routes/*.js', './src/routes/studentRoutes.js', './src/routes/attendanceRoutes.js'] // Include attendanceRoutes.js for Swagger documentation
 };
 
 const swaggerSpec = swaggerJsdoc(options);
