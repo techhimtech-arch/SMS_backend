@@ -74,6 +74,8 @@ const router = express.Router();
  *             properties:
  *               academicYear:
  *                 type: string
+ *               classId:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Fee assigned to student successfully
