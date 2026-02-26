@@ -58,7 +58,7 @@ const getStudents = async (req, res) => {
     console.log('Querying students with schoolId:', schoolId); // Debug log for schoolId
 
     // Convert schoolId to ObjectId using `new`
-    const students = await Student.find({ school: new mongoose.Types.ObjectId(schoolId) });
+    const students = await Student.find({ schoolId: new mongoose.Types.ObjectId(schoolId) });
 
     console.log('Query result:', students); // Debug log for query result
 
