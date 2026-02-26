@@ -14,7 +14,7 @@ const options = {
       { url: 'http://localhost:5000' } // Replace 5000 with your local port
     ],
   },
-  apis: ['./src/routes/*.js', './src/routes/studentRoutes.js','./src/routes/feeRoutes.js', './src/routes/attendanceRoutes.js'] // Include attendanceRoutes.js for Swagger documentation
+  apis: ['./src/routes/*.js', './src/routes/studentRoutes.js', './src/routes/attendanceRoutes.js', './src/routes/examsResultsRoutes.js'] // Include examsResultsRoutes.js for Swagger documentation
 };
 
 const swaggerSpec = swaggerJsdoc(options);
