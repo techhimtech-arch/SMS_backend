@@ -37,6 +37,10 @@ const studentSchema = new mongoose.Schema(
     parentPhone: {
       type: String,
     },
+    parentUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
     address: {
       type: String,
     },

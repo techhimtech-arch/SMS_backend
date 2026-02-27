@@ -9,6 +9,8 @@ const studentRoutes = require('./routes/studentRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const feesRoutes = require('./routes/feesRoutes');
 const examsResultsRoutes = require('./routes/examsResultsRoutes');
+const parentRoutes = require('./routes/parentRoutes');
+const parentPortalRoutes = require('./routes/parentPortalRoutes');
 const { swaggerUi, swaggerSpec } = require('../swagger');
 
 const app = express();
@@ -54,5 +56,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/fees', feesRoutes);
 app.use('/api/results', examsResultsRoutes);
+app.use('/api/parents', parentRoutes);
+app.use('/api/parent', parentPortalRoutes);
 
 module.exports = app;
