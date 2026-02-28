@@ -6,7 +6,7 @@ const FeePayment = require('../models/FeePayment');
 const Result = require('../models/Result');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
-const ErrorResponse = require('../utils/ErrorResponse');
+const ErrorResponse = require('../utils/errorResponse');
 
 // POST /api/parents - Create a new parent (school_admin only)
 exports.createParent = asyncHandler(async (req, res, next) => {

@@ -2,7 +2,7 @@ const FeeStructure = require('../models/FeeStructure');
 const StudentFee = require('../models/StudentFee');
 const FeePayment = require('../models/FeePayment');
 const asyncHandler = require('express-async-handler');
-const ErrorResponse = require('../utils/ErrorResponse');
+const ErrorResponse = require('../utils/errorResponse');
 
 // POST /api/fees/structure
 exports.createFeeStructure = asyncHandler(async (req, res, next) => {

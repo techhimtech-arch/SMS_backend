@@ -2,7 +2,7 @@ const Subject = require('../models/Subject');
 const Exam = require('../models/Exam');
 const Result = require('../models/Result');
 const asyncHandler = require('express-async-handler');
-const ErrorResponse = require('../utils/ErrorResponse');
+const ErrorResponse = require('../utils/errorResponse');
 
 // POST /api/exams
 exports.createExam = asyncHandler(async (req, res, next) => {
