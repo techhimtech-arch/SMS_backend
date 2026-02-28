@@ -14,7 +14,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/users:
+ * /users:
  *   post:
  *     summary: Create a new user (teacher or accountant)
  *     tags: [Users]
@@ -47,7 +47,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/users:
+ * /users:
  *   get:
  *     summary: Get all users of the same school
  *     tags: [Users]
@@ -77,7 +77,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/users/{id}/status:
+ * /users/{id}/status:
  *   patch:
  *     summary: Toggle user status (activate/deactivate)
  *     tags: [Users]

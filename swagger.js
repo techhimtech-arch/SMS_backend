@@ -10,11 +10,21 @@ const options = {
       description: 'Multi-school SaaS backend APIs',
     },
     servers: [
-      { url: 'https://sms-backend-d19v.onrender.com' },
-      { url: 'http://localhost:5000' } // Replace 5000 with your local port
+      { url: 'https://sms-backend-d19v.onrender.com/api/v1', description: 'Production' },
+      { url: 'http://localhost:5000/api/v1', description: 'Local Development' }
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Enter your JWT token (without "Bearer " prefix)'
+        }
+      }
+    }
   },
-  apis: ['./src/routes/*.js', './src/routes/studentRoutes.js', './src/routes/attendanceRoutes.js', './src/routes/examsResultsRoutes.js'] // Include examsResultsRoutes.js for Swagger documentation
+  apis: ['./src/routes/*.js']
 };
 
 const swaggerSpec = swaggerJsdoc(options);

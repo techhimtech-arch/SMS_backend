@@ -27,7 +27,7 @@ router.post(
 
 /**
  * @swagger
- * /api/classes:
+ * /classes:
  *   post:
  *     summary: Create a new class
  *     tags: [Classes]
@@ -61,7 +61,7 @@ router.get(
 
 /**
  * @swagger
- * /api/classes:
+ * /classes:
  *   get:
  *     summary: Get all classes for the logged-in user's school
  *     tags: [Classes]
@@ -84,7 +84,7 @@ router.patch(
 
 /**
  * @swagger
- * /api/classes/{id}:
+ * /classes/{id}:
  *   patch:
  *     summary: Update class name
  *     tags: [Classes]
@@ -125,7 +125,7 @@ router.delete(
 
 /**
  * @swagger
- * /api/classes/{id}:
+ * /classes/{id}:
  *   delete:
  *     summary: Soft delete a class
  *     tags: [Classes]

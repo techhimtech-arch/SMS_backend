@@ -27,7 +27,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/parents:
+ * /parents:
  *   post:
  *     summary: Create a new parent user
  *     tags: [Parents]
@@ -65,7 +65,7 @@ router.post('/', authMiddleware, authorizeRoles('school_admin'), createParent);
 
 /**
  * @swagger
- * /api/parents:
+ * /parents:
  *   get:
  *     summary: Get all parents of the school
  *     tags: [Parents]
@@ -79,7 +79,7 @@ router.get('/', authMiddleware, authorizeRoles('school_admin'), getParents);
 
 /**
  * @swagger
- * /api/parents/link-student:
+ * /parents/link-student:
  *   put:
  *     summary: Link a parent to a student
  *     tags: [Parents]

@@ -19,7 +19,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/results/exams:
+ * /results/exams:
  *   post:
  *     summary: Create an exam
  *     tags: [Exams and Results]
@@ -50,7 +50,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/results/subjects:
+ * /results/subjects:
  *   post:
  *     summary: Create a subject for a class
  *     tags: [Exams and Results]
@@ -76,7 +76,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/results/results:
+ * /results/results:
  *   post:
  *     summary: Add marks for a student
  *     tags: [Exams and Results]
@@ -112,7 +112,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/results/results/student/{studentId}:
+ * /results/results/student/{studentId}:
  *   get:
  *     summary: Get student results for a specific exam
  *     tags: [Exams and Results]

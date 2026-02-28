@@ -15,7 +15,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/students:
+ * /students:
  *   post:
  *     summary: Add a new student
  *     tags: [Students]
@@ -71,7 +71,7 @@ router.post(
 
 /**
  * @swagger
- * /api/students:
+ * /students:
  *   get:
  *     summary: Get all students for the logged-in user's school
  *     tags: [Students]

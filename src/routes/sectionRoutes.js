@@ -21,7 +21,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/sections:
+ * /sections:
  *   post:
  *     summary: Create a new section
  *     tags: [Sections]
@@ -50,7 +50,7 @@ router.post('/', authMiddleware, authorizeRoles('school_admin'), validateSection
 
 /**
  * @swagger
- * /api/sections:
+ * /sections:
  *   get:
  *     summary: Get all sections of the logged-in school
  *     tags: [Sections]
@@ -64,7 +64,7 @@ router.get('/', authMiddleware, authorizeRoles('school_admin'), getSections);
 
 /**
  * @swagger
- * /api/sections/class/{classId}:
+ * /sections/class/{classId}:
  *   get:
  *     summary: Get sections for a specific class
  *     tags: [Sections]
@@ -84,7 +84,7 @@ router.get('/class/:classId', authMiddleware, authorizeRoles('school_admin'), ge
 
 /**
  * @swagger
- * /api/sections/{id}:
+ * /sections/{id}:
  *   patch:
  *     summary: Update a section
  *     tags: [Sections]
@@ -115,7 +115,7 @@ router.patch('/:id', authMiddleware, authorizeRoles('school_admin'), updateSecti
 
 /**
  * @swagger
- * /api/sections/{id}:
+ * /sections/{id}:
  *   delete:
  *     summary: Soft delete a section
  *     tags: [Sections]

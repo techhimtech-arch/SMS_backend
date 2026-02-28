@@ -13,7 +13,7 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
 
 /**
  * @swagger
- * /api/dashboard:
+ * /dashboard:
  *   get:
  *     summary: Get dashboard statistics for school admin
  *     tags: [Dashboard]

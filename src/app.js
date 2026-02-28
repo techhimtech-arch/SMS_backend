@@ -47,6 +47,11 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map((origin) => origin.trim())
   : [];
 
+// Allow localhost for development (Swagger UI)
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:5000', 'http://127.0.0.1:5000');
+}
+
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, curl, etc.)
@@ -102,23 +107,23 @@ app.get('/health', (req, res) => {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ===========================================
-// API ROUTES
+// API ROUTES (v1)
 // ===========================================
 
 // Auth routes with stricter rate limiting (10 requests per 15 min)
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/v1/auth', authLimiter, authRoutes);
 
 // Protected routes (global rate limit already applied)
-app.use('/api/users', userRoutes);
-app.use('/api/classes', classRoutes);
-app.use('/api/sections', sectionRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/fees', feesRoutes);
-app.use('/api/results', examsResultsRoutes);
-app.use('/api/parents', parentRoutes);
-app.use('/api/parent', parentPortalRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/classes', classRoutes);
+app.use('/api/v1/sections', sectionRoutes);
+app.use('/api/v1/students', studentRoutes);
+app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/fees', feesRoutes);
+app.use('/api/v1/results', examsResultsRoutes);
+app.use('/api/v1/parents', parentRoutes);
+app.use('/api/v1/parent', parentPortalRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
 
 // ===========================================
 // ERROR HANDLING

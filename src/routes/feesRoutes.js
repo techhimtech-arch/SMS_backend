@@ -19,7 +19,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/fees/structure:
+ * /fees/structure:
  *   post:
  *     summary: Create class fee structure
  *     tags: [Fees]
@@ -53,7 +53,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/fees/assign/{studentId}:
+ * /fees/assign/{studentId}:
  *   post:
  *     summary: Assign fee to a student
  *     tags: [Fees]
@@ -85,7 +85,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/fees/payment/{studentId}:
+ * /fees/payment/{studentId}:
  *   post:
  *     summary: Record a fee payment
  *     tags: [Fees]
@@ -118,7 +118,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/fees/student/{studentId}:
+ * /fees/student/{studentId}:
  *   get:
  *     summary: Get student fee details
  *     tags: [Fees]

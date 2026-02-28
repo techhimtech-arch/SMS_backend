@@ -19,7 +19,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/attendance:
+ * /attendance:
  *   post:
  *     summary: Mark attendance for a single student
  *     tags: [Attendance]
@@ -53,7 +53,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/attendance/bulk:
+ * /attendance/bulk:
  *   post:
  *     summary: Mark attendance for multiple students in bulk
  *     tags: [Attendance]
@@ -88,7 +88,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/attendance:
+ * /attendance:
  *   get:
  *     summary: Get attendance records
  *     tags: [Attendance]
@@ -118,7 +118,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/attendance/{id}:
+ * /attendance/{id}:
  *   delete:
  *     summary: Delete an attendance record
  *     tags: [Attendance]

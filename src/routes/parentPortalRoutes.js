@@ -24,7 +24,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/parent/profile:
+ * /parent/profile:
  *   get:
  *     summary: Get parent profile with linked student info
  *     tags: [Parent Portal]
@@ -40,7 +40,7 @@ router.get('/profile', authMiddleware, authorizeRoles('parent'), getProfile);
 
 /**
  * @swagger
- * /api/parent/attendance:
+ * /parent/attendance:
  *   get:
  *     summary: Get linked student's attendance records
  *     tags: [Parent Portal]
@@ -67,7 +67,7 @@ router.get('/attendance', authMiddleware, authorizeRoles('parent'), getAttendanc
 
 /**
  * @swagger
- * /api/parent/fees:
+ * /parent/fees:
  *   get:
  *     summary: Get linked student's fee details and payment history
  *     tags: [Parent Portal]
@@ -83,7 +83,7 @@ router.get('/fees', authMiddleware, authorizeRoles('parent'), getFees);
 
 /**
  * @swagger
- * /api/parent/results:
+ * /parent/results:
  *   get:
  *     summary: Get linked student's exam results
  *     tags: [Parent Portal]
