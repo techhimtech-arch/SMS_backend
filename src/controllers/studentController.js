@@ -50,19 +50,39 @@ const createStudent = asyncHandler(async (req, res) => {
   }
 });
 
-// Fetch all students for the logged-in user's school
+// Fetch all students for the logged-in user's school (with pagination)
 const getStudents = async (req, res) => {
   try {
-    const { schoolId } = req.user; // Extract schoolId from the authenticated user
+    const { schoolId } = req.user;
 
-    console.log('Querying students with schoolId:', schoolId); // Debug log for schoolId
+    // Pagination params
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 10;
 
-    // Convert schoolId to ObjectId using `new`
-    const students = await Student.find({ schoolId: new mongoose.Types.ObjectId(schoolId) });
+    // Enforce limits
+    if (page < 1) page = 1;
+    if (limit < 1) limit = 10;
+    if (limit > 100) limit = 100;
 
-    console.log('Query result:', students); // Debug log for query result
+    const skip = (page - 1) * limit;
 
-    res.status(200).json({ success: true, data: students });
+    const query = { schoolId: new mongoose.Types.ObjectId(schoolId) };
+
+    // Get total count and paginated data
+    const [totalCount, students] = await Promise.all([
+      Student.countDocuments(query),
+      Student.find(query).skip(skip).limit(limit)
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    res.status(200).json({
+      success: true,
+      count: students.length,
+      page,
+      totalPages,
+      data: students
+    });
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ success: false, message: 'Server error' });
