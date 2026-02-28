@@ -18,6 +18,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
+const { corsErrorHandler, notFoundHandler, errorHandler } = require('./middlewares/errorMiddleware');
 
 // Swagger
 const { swaggerUi, swaggerSpec } = require('../swagger');
@@ -128,45 +129,8 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 // ===========================================
 // ERROR HANDLING
 // ===========================================
-
-// Handle CORS errors
-app.use((err, req, res, next) => {
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      success: false,
-      message: 'CORS: Origin not allowed',
-    });
-  }
-  next(err);
-});
-
-// 404 Handler - Route not found
-app.use((req, res, next) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.method} ${req.url} not found`,
-  });
-});
-
-// Centralized error handler
-app.use((err, req, res, next) => {
-  // Log error (don't expose stack trace in production)
-  console.error(`[ERROR] ${err.message}`);
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err.stack);
-  }
-
-  // Handle specific error types
-  const statusCode = err.statusCode || 500;
-  const message = process.env.NODE_ENV === 'production' && statusCode === 500
-    ? 'Internal server error'
-    : err.message || 'Something went wrong!';
-
-  res.status(statusCode).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
-  });
-});
+app.use(corsErrorHandler);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
