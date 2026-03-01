@@ -15,6 +15,7 @@ const examsResultsRoutes = require('./routes/examsResultsRoutes');
 const parentRoutes = require('./routes/parentRoutes');
 const parentPortalRoutes = require('./routes/parentPortalRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const teacherAssignmentRoutes = require('./routes/teacherAssignmentRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
@@ -125,6 +126,7 @@ app.use('/api/v1/results', examsResultsRoutes);
 app.use('/api/v1/parents', parentRoutes);
 app.use('/api/v1/parent', parentPortalRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/teacher-assignments', teacherAssignmentRoutes);
 
 // ===========================================
 // ERROR HANDLING
