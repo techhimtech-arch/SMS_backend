@@ -36,6 +36,10 @@ const resultSchema = new mongoose.Schema(
     remarks: {
       type: String,
     },
+    enteredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
   },
   {
     timestamps: true,

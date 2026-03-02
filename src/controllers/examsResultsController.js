@@ -1,6 +1,8 @@
 const Subject = require('../models/Subject');
 const Exam = require('../models/Exam');
 const Result = require('../models/Result');
+const Student = require('../models/Student');
+const TeacherAssignment = require('../models/TeacherAssignment');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 
@@ -35,13 +37,41 @@ exports.createSubject = asyncHandler(async (req, res, next) => {
 // POST /api/results
 exports.addResult = asyncHandler(async (req, res, next) => {
   const { studentId, examId, subjectId, marksObtained, maxMarks, grade, remarks } = req.body;
+  const { role, id: userId, schoolId } = req.user;
 
-  // Validate student belongs to the same school
+  // Role-based authorization
+  if (role === 'superadmin' || role === 'school_admin') {
+    // Allow - no assignment check needed
+  } else if (role === 'teacher') {
+    // Get student's classId and sectionId for assignment verification
+    const student = await Student.findById(studentId).select('classId sectionId');
+    if (!student) {
+      return next(new ErrorResponse('Student not found', 404));
+    }
+
+    // Verify teacher assignment
+    const assignment = await TeacherAssignment.findOne({
+      teacherId: userId,
+      classId: student.classId,
+      sectionId: student.sectionId,
+      subjectId,
+      schoolId,
+      isActive: true,
+    });
+
+    if (!assignment) {
+      return next(new ErrorResponse('You are not authorized to add marks for this subject.', 403));
+    }
+  } else {
+    return next(new ErrorResponse('You are not authorized.', 403));
+  }
+
+  // Check for duplicate result
   const existingResult = await Result.findOne({
     studentId,
     examId,
     subjectId,
-    schoolId: req.user.schoolId,
+    schoolId,
   });
 
   if (existingResult) {
@@ -52,11 +82,12 @@ exports.addResult = asyncHandler(async (req, res, next) => {
     studentId,
     examId,
     subjectId,
-    schoolId: req.user.schoolId,
+    schoolId,
     marksObtained,
     maxMarks,
     grade,
     remarks,
+    enteredBy: userId,
   });
 
   res.status(201).json({ success: true, data: result });

@@ -1,21 +1,44 @@
 const Attendance = require('../models/Attendance');
+const TeacherAssignment = require('../models/TeacherAssignment');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 
 // POST /api/attendance
 exports.markAttendance = asyncHandler(async (req, res, next) => {
-  const { studentId, date, status } = req.body;
+  const { studentId, date, status, classId, sectionId, subjectId } = req.body;
+  const { role, id: userId, schoolId } = req.user;
 
   // Validate student belongs to the same school
-  if (!req.user.schoolId) {
+  if (!schoolId) {
     return next(new ErrorResponse('Unauthorized access', 403));
+  }
+
+  // Role-based authorization
+  if (role === 'superadmin' || role === 'school_admin') {
+    // Allow - no assignment check needed
+  } else if (role === 'teacher') {
+    // Verify teacher assignment
+    const assignment = await TeacherAssignment.findOne({
+      teacherId: userId,
+      classId,
+      sectionId,
+      subjectId,
+      schoolId,
+      isActive: true,
+    });
+
+    if (!assignment) {
+      return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
+    }
+  } else {
+    return next(new ErrorResponse('You are not authorized.', 403));
   }
 
   // Check for duplicate attendance
   const existingAttendance = await Attendance.findOne({
     studentId,
     date,
-    schoolId: req.user.schoolId,
+    schoolId,
   });
 
   if (existingAttendance) {
@@ -24,12 +47,13 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
 
   const attendance = await Attendance.create({
     studentId,
-    classId: req.body.classId,
-    sectionId: req.body.sectionId,
-    schoolId: req.user.schoolId,
+    classId,
+    sectionId,
+    subjectId,
+    schoolId,
     date,
     status,
-    markedBy: req.user.userId,
+    markedBy: userId,
   });
 
   res.status(201).json({ success: true, data: attendance });
@@ -37,23 +61,39 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
 
 // POST /api/attendance/bulk
 exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
-  const { date, records } = req.body;
+  const { date, records, classId, sectionId, subjectId } = req.body;
+  const { role, id: userId, schoolId } = req.user;
+
+  // Role-based authorization
+  if (role === 'superadmin' || role === 'school_admin') {
+    // Allow - no assignment check needed
+  } else if (role === 'teacher') {
+    // Verify teacher assignment
+    const assignment = await TeacherAssignment.findOne({
+      teacherId: userId,
+      classId,
+      sectionId,
+      subjectId,
+      schoolId,
+      isActive: true,
+    });
+
+    if (!assignment) {
+      return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
+    }
+  } else {
+    return next(new ErrorResponse('You are not authorized.', 403));
+  }
 
   const bulkRecords = records.map((record) => ({
     ...record,
-    schoolId: req.user.schoolId,
-    markedBy: req.user.userId,
+    classId,
+    sectionId,
+    subjectId,
+    schoolId,
+    markedBy: userId,
     date,
   }));
-
-  // Validate all students belong to the same school
-  const invalidRecords = bulkRecords.filter(
-    (record) => record.schoolId !== req.user.schoolId
-  );
-
-  if (invalidRecords.length > 0) {
-    return next(new ErrorResponse('Some students do not belong to this school', 400));
-  }
 
   try {
     const attendance = await Attendance.insertMany(bulkRecords, { ordered: false });

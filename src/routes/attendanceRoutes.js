@@ -22,6 +22,11 @@ const router = express.Router();
  * /attendance:
  *   post:
  *     summary: Mark attendance for a single student
+ *     description: |
+ *       Role-based access:
+ *       - superadmin/school_admin: Allowed without restriction
+ *       - teacher: Must have active TeacherAssignment for the class/section/subject
+ *       - Others: Not allowed
  *     tags: [Attendance]
  *     security:
  *       - bearerAuth: []
@@ -31,13 +36,26 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - studentId
+ *               - classId
+ *               - sectionId
+ *               - subjectId
+ *               - date
+ *               - status
  *             properties:
  *               studentId:
  *                 type: string
+ *                 description: Student's ObjectId
  *               classId:
  *                 type: string
+ *                 description: Class ObjectId
  *               sectionId:
  *                 type: string
+ *                 description: Section ObjectId
+ *               subjectId:
+ *                 type: string
+ *                 description: Subject ObjectId (required for teacher assignment verification)
  *               date:
  *                 type: string
  *                 format: date
@@ -48,7 +66,9 @@ const router = express.Router();
  *       201:
  *         description: Attendance marked successfully
  *       400:
- *         description: Bad request
+ *         description: Duplicate attendance or bad request
+ *       403:
+ *         description: Not authorized (teacher not assigned to this subject)
  */
 
 /**
@@ -56,6 +76,11 @@ const router = express.Router();
  * /attendance/bulk:
  *   post:
  *     summary: Mark attendance for multiple students in bulk
+ *     description: |
+ *       Role-based access:
+ *       - superadmin/school_admin: Allowed without restriction
+ *       - teacher: Must have active TeacherAssignment for the class/section/subject
+ *       - Others: Not allowed
  *     tags: [Attendance]
  *     security:
  *       - bearerAuth: []
@@ -65,14 +90,32 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - date
+ *               - classId
+ *               - sectionId
+ *               - subjectId
+ *               - records
  *             properties:
  *               date:
  *                 type: string
  *                 format: date
+ *               classId:
+ *                 type: string
+ *                 description: Class ObjectId
+ *               sectionId:
+ *                 type: string
+ *                 description: Section ObjectId
+ *               subjectId:
+ *                 type: string
+ *                 description: Subject ObjectId (required for teacher assignment verification)
  *               records:
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required:
+ *                     - studentId
+ *                     - status
  *                   properties:
  *                     studentId:
  *                       type: string
@@ -84,6 +127,8 @@ const router = express.Router();
  *         description: Bulk attendance marked successfully
  *       400:
  *         description: Bad request
+ *       403:
+ *         description: Not authorized (teacher not assigned to this subject)
  */
 
 /**
@@ -139,7 +184,7 @@ const router = express.Router();
 
 // Apply authentication and authorization middleware
 router.use(protect);
-router.use(authorizeRoles('school_admin', 'teacher'));
+router.use(authorizeRoles('superadmin', 'school_admin', 'teacher'));
 
 // Routes
 router.post('/', markAttendance);

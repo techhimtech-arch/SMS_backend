@@ -79,6 +79,11 @@ const router = express.Router();
  * /results/results:
  *   post:
  *     summary: Add marks for a student
+ *     description: |
+ *       Role-based access:
+ *       - superadmin/school_admin: Allowed without restriction
+ *       - teacher: Must have active TeacherAssignment for student's class/section and the subject
+ *       - Others: Not allowed
  *     tags: [Exams and Results]
  *     security:
  *       - bearerAuth: []
@@ -88,13 +93,22 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - studentId
+ *               - examId
+ *               - subjectId
+ *               - marksObtained
+ *               - maxMarks
  *             properties:
  *               studentId:
  *                 type: string
+ *                 description: Student's ObjectId
  *               examId:
  *                 type: string
+ *                 description: Exam ObjectId
  *               subjectId:
  *                 type: string
+ *                 description: Subject ObjectId (used for teacher assignment verification)
  *               marksObtained:
  *                 type: number
  *               maxMarks:
@@ -107,7 +121,11 @@ const router = express.Router();
  *       201:
  *         description: Result added successfully
  *       400:
- *         description: Bad request
+ *         description: Duplicate result or bad request
+ *       403:
+ *         description: Not authorized (teacher not assigned to this subject)
+ *       404:
+ *         description: Student not found
  */
 
 /**
@@ -137,7 +155,7 @@ const router = express.Router();
 
 // Apply authentication and authorization middleware
 router.use(protect);
-router.use(authorizeRoles('school_admin', 'teacher'));
+router.use(authorizeRoles('superadmin', 'school_admin', 'teacher'));
 
 // Routes
 router.post('/exams', createExam);
