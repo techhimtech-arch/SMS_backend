@@ -1,4 +1,5 @@
 const ErrorResponse = require('../utils/errorResponse');
+const logger = require('../utils/logger');
 
 // Handle CORS errors
 const corsErrorHandler = (err, req, res, next) => {
@@ -18,11 +19,14 @@ const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error
-  console.error(`[ERROR] ${err.message}`);
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err.stack);
-  }
+  // Log error with request context
+  logger.error(err.message, {
+    requestId: req.requestId,
+    method: req.method,
+    url: req.url,
+    stack: err.stack,
+    statusCode: err.statusCode || 500,
+  });
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {

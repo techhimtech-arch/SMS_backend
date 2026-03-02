@@ -8,6 +8,7 @@ const FeePayment = require('../models/FeePayment');
 const StudentFee = require('../models/StudentFee');
 const Exam = require('../models/Exam');
 const Result = require('../models/Result');
+const logger = require('../utils/logger');
 
 /**
  * @desc    Get dashboard statistics for school admin
@@ -155,7 +156,7 @@ const getDashboardStats = async (req, res) => {
       data: dashboardData,
     });
   } catch (error) {
-    console.error('Dashboard Error:', error);
+    logger.error('Dashboard Error', { requestId: req.requestId, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch dashboard data',

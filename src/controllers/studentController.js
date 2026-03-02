@@ -1,7 +1,8 @@
 const Student = require('../models/Student');
 const asyncHandler = require('express-async-handler');
 const { validationResult } = require('express-validator');
-const mongoose = require('mongoose'); // Add this at the top
+const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 // Create a new student
 const createStudent = asyncHandler(async (req, res) => {
@@ -13,7 +14,7 @@ const createStudent = asyncHandler(async (req, res) => {
   const { admissionNumber, firstName, lastName, gender, dateOfBirth, classId, sectionId, parentName, parentPhone, address } = req.body;
 
   if (!req.user || !req.user.schoolId) {
-    console.error('req.user or schoolId is missing');
+    logger.warn('Missing schoolId in request', { requestId: req.requestId });
     return res.status(401).json({ success: false, message: 'Unauthorized: Missing schoolId' });
   }
 
@@ -41,7 +42,7 @@ const createStudent = asyncHandler(async (req, res) => {
       data: student,
     });
   } catch (error) {
-    console.error('Error in createStudent:', error);
+    logger.error('Error in createStudent', { requestId: req.requestId, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -90,7 +91,7 @@ const getStudents = async (req, res) => {
       data: students
     });
   } catch (error) {
-    console.error('Error fetching students:', error);
+    logger.error('Error fetching students', { requestId: req.requestId, error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

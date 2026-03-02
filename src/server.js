@@ -6,6 +6,7 @@ validateEnv();
 
 const app = require('./app');
 const connectDB = require('./config/db');
+const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
 
@@ -14,19 +15,21 @@ connectDB();
 
 // Start the server
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📚 API Docs available at http://localhost:${PORT}/api-docs`);
-  console.log(`🔒 Security hardening enabled: Helmet, Rate Limiting, CORS`);
+  logger.info('Server started', {
+    port: PORT,
+    apiDocs: `http://localhost:${PORT}/api-docs`,
+    security: ['Helmet', 'Rate Limiting', 'CORS'],
+  });
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  console.error(`❌ Unhandled Rejection: ${err.message}`);
+  logger.error('Unhandled Rejection', { message: err.message, stack: err.stack });
   server.close(() => process.exit(1));
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  console.error(`❌ Uncaught Exception: ${err.message}`);
+  logger.error('Uncaught Exception', { message: err.message, stack: err.stack });
   process.exit(1);
 });

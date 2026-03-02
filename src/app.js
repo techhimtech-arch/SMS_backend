@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const logger = require('./utils/logger');
+const requestIdMiddleware = require('./middlewares/requestId');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -25,6 +27,11 @@ const { corsErrorHandler, notFoundHandler, errorHandler } = require('./middlewar
 const { swaggerUi, swaggerSpec } = require('../swagger');
 
 const app = express();
+
+// ===========================================
+// REQUEST TRACKING (Must be first)
+// ===========================================
+app.use(requestIdMiddleware);
 
 // ===========================================
 // SECURITY MIDDLEWARE (ORDER MATTERS!)
@@ -64,7 +71,7 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`⚠️  CORS blocked request from: ${origin}`);
+      logger.warn('CORS blocked request', { origin });
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -84,10 +91,12 @@ app.use(globalLimiter);
 app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// 5. HTTP Request Logging (Morgan)
-// Use 'combined' in production for detailed logs, 'dev' for development
-const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+// 5. HTTP Request Logging (Morgan with Winston)
+const morganFormat = ':method :url :status :response-time ms';
 app.use(morgan(morganFormat, {
+  stream: {
+    write: (message) => logger.info(message.trim(), { type: 'http' }),
+  },
   // Skip logging for health checks to reduce noise
   skip: (req, res) => req.url === '/health',
 }));
