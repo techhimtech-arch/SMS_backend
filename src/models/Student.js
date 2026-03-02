@@ -6,6 +6,9 @@ const studentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    rollNumber: {
+      type: String,
+    },
     firstName: {
       type: String,
       required: true,
@@ -65,5 +68,8 @@ const studentSchema = new mongoose.Schema(
 
 // Compound index to ensure unique admissionNumber per school
 studentSchema.index({ admissionNumber: 1, schoolId: 1 }, { unique: true });
+
+// Compound index to ensure unique rollNumber per section per school
+studentSchema.index({ rollNumber: 1, sectionId: 1, schoolId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Student', studentSchema);
