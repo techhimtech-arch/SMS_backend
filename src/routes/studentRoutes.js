@@ -74,6 +74,10 @@ router.post(
  * /students:
  *   get:
  *     summary: Get all students for the logged-in user's school
+ *     description: |
+ *       Role-based access:
+ *       - superadmin/school_admin/teacher: Returns all students in school
+ *       - parent: Returns only their own children (filtered by parentUserId)
  *     tags: [Students]
  *     security:
  *       - bearerAuth: []

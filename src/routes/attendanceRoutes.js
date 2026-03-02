@@ -136,6 +136,10 @@ const router = express.Router();
  * /attendance:
  *   get:
  *     summary: Get attendance records
+ *     description: |
+ *       Role-based access:
+ *       - superadmin/school_admin/teacher: Can filter by classId, sectionId, studentId
+ *       - parent: Automatically filtered to only show their own children's attendance (query params ignored)
  *     tags: [Attendance]
  *     security:
  *       - bearerAuth: []
@@ -150,10 +154,17 @@ const router = express.Router();
  *         name: classId
  *         schema:
  *           type: string
+ *         description: Filter by class (ignored for parent role)
  *       - in: query
  *         name: sectionId
  *         schema:
  *           type: string
+ *         description: Filter by section (ignored for parent role)
+ *       - in: query
+ *         name: studentId
+ *         schema:
+ *           type: string
+ *         description: Filter by student (ignored for parent role)
  *     responses:
  *       200:
  *         description: Attendance records retrieved successfully
@@ -182,14 +193,18 @@ const router = express.Router();
  *         description: Attendance record not found
  */
 
-// Apply authentication and authorization middleware
+// Apply authentication middleware
 router.use(protect);
-router.use(authorizeRoles('superadmin', 'school_admin', 'teacher'));
 
-// Routes
-router.post('/', markAttendance);
-router.post('/bulk', bulkMarkAttendance);
-router.get('/', getAttendance);
-router.delete('/:id', deleteAttendance);
+// Routes with specific role authorization
+// POST routes - only admin/teacher
+router.post('/', authorizeRoles('superadmin', 'school_admin', 'teacher'), markAttendance);
+router.post('/bulk', authorizeRoles('superadmin', 'school_admin', 'teacher'), bulkMarkAttendance);
+
+// GET routes - allow parent for their own children
+router.get('/', authorizeRoles('superadmin', 'school_admin', 'teacher', 'parent'), getAttendance);
+
+// DELETE routes - only admin/teacher
+router.delete('/:id', authorizeRoles('superadmin', 'school_admin', 'teacher'), deleteAttendance);
 
 module.exports = router;

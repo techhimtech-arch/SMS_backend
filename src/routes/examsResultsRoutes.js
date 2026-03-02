@@ -133,6 +133,10 @@ const router = express.Router();
  * /results/results/student/{studentId}:
  *   get:
  *     summary: Get student results for a specific exam
+ *     description: |
+ *       Role-based access:
+ *       - superadmin/school_admin/teacher: Can access any student's results
+ *       - parent: Can only access their own children's results (403 if studentId doesn't belong to them)
  *     tags: [Exams and Results]
  *     security:
  *       - bearerAuth: []
@@ -149,18 +153,22 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Student results retrieved successfully
+ *       403:
+ *         description: Parent not authorized to access this student's data
  *       404:
  *         description: Results not found
  */
 
-// Apply authentication and authorization middleware
+// Apply authentication middleware
 router.use(protect);
-router.use(authorizeRoles('superadmin', 'school_admin', 'teacher'));
 
-// Routes
-router.post('/exams', createExam);
-router.post('/subjects', createSubject);
-router.post('/results', addResult);
-router.get('/results/student/:studentId', getStudentResults);
+// Routes with specific role authorization
+// POST routes - only admin/teacher
+router.post('/exams', authorizeRoles('superadmin', 'school_admin', 'teacher'), createExam);
+router.post('/subjects', authorizeRoles('superadmin', 'school_admin', 'teacher'), createSubject);
+router.post('/results', authorizeRoles('superadmin', 'school_admin', 'teacher'), addResult);
+
+// GET routes - allow parent for their own children
+router.get('/results/student/:studentId', authorizeRoles('superadmin', 'school_admin', 'teacher', 'parent'), getStudentResults);
 
 module.exports = router;

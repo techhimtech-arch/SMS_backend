@@ -105,15 +105,35 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
 
 // GET /api/attendance
 exports.getAttendance = asyncHandler(async (req, res, next) => {
-  const { date, classId, sectionId } = req.query;
+  const { date, classId, sectionId, studentId } = req.query;
+  const { role, id: userId, schoolId } = req.user;
 
   const query = {
-    schoolId: req.user.schoolId,
+    schoolId,
     date,
   };
 
-  if (classId) query.classId = classId;
-  if (sectionId) query.sectionId = sectionId;
+  // Parent data isolation - only see their own children's attendance
+  if (role === 'parent') {
+    // Get parent's children
+    const Student = require('../models/Student');
+    const children = await Student.find({
+      parentUserId: userId,
+      schoolId,
+    }).select('_id');
+
+    if (children.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const childIds = children.map((child) => child._id);
+    query.studentId = { $in: childIds };
+  } else {
+    // For admin/teacher - allow filtering by classId, sectionId, studentId
+    if (classId) query.classId = classId;
+    if (sectionId) query.sectionId = sectionId;
+    if (studentId) query.studentId = studentId;
+  }
 
   const attendance = await Attendance.find(query)
     .populate('studentId', 'firstName lastName');

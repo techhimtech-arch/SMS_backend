@@ -53,7 +53,7 @@ const createStudent = asyncHandler(async (req, res) => {
 // Fetch all students for the logged-in user's school (with pagination)
 const getStudents = async (req, res) => {
   try {
-    const { schoolId } = req.user;
+    const { schoolId, role, id: userId } = req.user;
 
     // Pagination params
     let page = parseInt(req.query.page) || 1;
@@ -66,7 +66,13 @@ const getStudents = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const query = { schoolId: new mongoose.Types.ObjectId(schoolId) };
+    // Build query based on role
+    let query = { schoolId: new mongoose.Types.ObjectId(schoolId) };
+
+    // Parent data isolation - only see their own children
+    if (role === 'parent') {
+      query.parentUserId = new mongoose.Types.ObjectId(userId);
+    }
 
     // Get total count and paginated data
     const [totalCount, students] = await Promise.all([

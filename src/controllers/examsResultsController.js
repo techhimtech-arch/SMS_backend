@@ -97,10 +97,24 @@ exports.addResult = asyncHandler(async (req, res, next) => {
 exports.getStudentResults = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
   const { examId } = req.query;
+  const { role, id: userId, schoolId } = req.user;
+
+  // Parent data isolation - verify studentId belongs to parent
+  if (role === 'parent') {
+    const student = await Student.findOne({
+      _id: studentId,
+      parentUserId: userId,
+      schoolId,
+    });
+
+    if (!student) {
+      return next(new ErrorResponse('You are not authorized to access this data.', 403));
+    }
+  }
 
   const query = {
     studentId,
-    schoolId: req.user.schoolId,
+    schoolId,
   };
 
   if (examId) query.examId = examId;
