@@ -7,6 +7,16 @@ const {
 } = require('../controllers/attendanceController');
 const protect = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
+const { check, validationResult } = require('express-validator');
+
+// Validation middleware helper
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+  next();
+};
 
 const router = express.Router();
 
@@ -198,8 +208,36 @@ router.use(protect);
 
 // Routes with specific role authorization
 // POST routes - only admin/teacher
-router.post('/', authorizeRoles('superadmin', 'school_admin', 'teacher'), markAttendance);
-router.post('/bulk', authorizeRoles('superadmin', 'school_admin', 'teacher'), bulkMarkAttendance);
+router.post(
+  '/',
+  authorizeRoles('superadmin', 'school_admin', 'teacher'),
+  [
+    check('studentId', 'Student ID is required').notEmpty().isMongoId(),
+    check('classId', 'Class ID is required').notEmpty().isMongoId(),
+    check('sectionId', 'Section ID is required').notEmpty().isMongoId(),
+    check('subjectId', 'Subject ID is required').notEmpty().isMongoId(),
+    check('date', 'Date is required').notEmpty().isISO8601(),
+    check('status', 'Status must be Present, Absent, or Leave').isIn(['Present', 'Absent', 'Leave']),
+  ],
+  validate,
+  markAttendance
+);
+
+router.post(
+  '/bulk',
+  authorizeRoles('superadmin', 'school_admin', 'teacher'),
+  [
+    check('classId', 'Class ID is required').notEmpty().isMongoId(),
+    check('sectionId', 'Section ID is required').notEmpty().isMongoId(),
+    check('subjectId', 'Subject ID is required').notEmpty().isMongoId(),
+    check('date', 'Date is required').notEmpty().isISO8601(),
+    check('records', 'Records array is required').isArray({ min: 1 }),
+    check('records.*.studentId', 'Each record must have a valid studentId').isMongoId(),
+    check('records.*.status', 'Each record status must be Present, Absent, or Leave').isIn(['Present', 'Absent', 'Leave']),
+  ],
+  validate,
+  bulkMarkAttendance
+);
 
 // GET routes - allow parent for their own children
 router.get('/', authorizeRoles('superadmin', 'school_admin', 'teacher', 'parent'), getAttendance);

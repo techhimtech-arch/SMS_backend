@@ -12,6 +12,7 @@ const createClass = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: 'Class created successfully',
       data: newClass,
     });
   } catch (error) {
@@ -26,7 +27,7 @@ const createClass = async (req, res) => {
 // Get all classes for the logged-in user's school
 const getClasses = async (req, res) => {
   try {
-    const classes = await Class.find({ schoolId: req.user.schoolId });
+    const classes = await Class.find({ schoolId: req.user.schoolId, isActive: true });
     res.status(200).json({
       success: true,
       data: classes,
@@ -61,6 +62,7 @@ const updateClass = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: 'Class updated successfully',
       data: updatedClass,
     });
   } catch (error) {
@@ -92,7 +94,8 @@ const deleteClass = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: deletedClass,
+      message: 'Class deleted successfully',
+      data: {},
     });
   } catch (error) {
     res.status(500).json({

@@ -46,7 +46,7 @@ const getSectionsByClass = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid classId or unauthorized' });
   }
 
-  const sections = await Section.find({ schoolId: req.user.schoolId, classId })
+  const sections = await Section.find({ schoolId: req.user.schoolId, classId, isActive: true })
     .populate('classId', 'name')
     .populate('classTeacher', 'name email');
 
@@ -68,7 +68,7 @@ const updateSection = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Section not found or unauthorized' });
   }
 
-  res.status(200).json({ success: true, data: section });
+  res.status(200).json({ success: true, message: 'Section updated successfully', data: section });
 });
 
 // Soft delete a section

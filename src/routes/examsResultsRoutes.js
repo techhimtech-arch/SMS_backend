@@ -7,6 +7,16 @@ const {
 } = require('../controllers/examsResultsController');
 const protect = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
+const { check, validationResult } = require('express-validator');
+
+// Validation middleware helper
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+  next();
+};
 
 const router = express.Router();
 
@@ -164,9 +174,42 @@ router.use(protect);
 
 // Routes with specific role authorization
 // POST routes - only admin/teacher
-router.post('/exams', authorizeRoles('superadmin', 'school_admin', 'teacher'), createExam);
-router.post('/subjects', authorizeRoles('superadmin', 'school_admin', 'teacher'), createSubject);
-router.post('/results', authorizeRoles('superadmin', 'school_admin', 'teacher'), addResult);
+router.post(
+  '/exams',
+  authorizeRoles('superadmin', 'school_admin', 'teacher'),
+  [
+    check('name', 'Exam name is required').notEmpty().trim(),
+    check('classId', 'Class ID is required').notEmpty().isMongoId(),
+    check('academicYear', 'Academic year is required').notEmpty().trim(),
+  ],
+  validate,
+  createExam
+);
+
+router.post(
+  '/subjects',
+  authorizeRoles('superadmin', 'school_admin', 'teacher'),
+  [
+    check('name', 'Subject name is required').notEmpty().trim(),
+    check('classId', 'Class ID is required').notEmpty().isMongoId(),
+  ],
+  validate,
+  createSubject
+);
+
+router.post(
+  '/results',
+  authorizeRoles('superadmin', 'school_admin', 'teacher'),
+  [
+    check('studentId', 'Student ID is required').notEmpty().isMongoId(),
+    check('examId', 'Exam ID is required').notEmpty().isMongoId(),
+    check('subjectId', 'Subject ID is required').notEmpty().isMongoId(),
+    check('marksObtained', 'Marks obtained is required').notEmpty().isNumeric(),
+    check('maxMarks', 'Max marks is required').notEmpty().isNumeric(),
+  ],
+  validate,
+  addResult
+);
 
 // GET routes - allow parent for their own children
 router.get('/results/student/:studentId', authorizeRoles('superadmin', 'school_admin', 'teacher', 'parent'), getStudentResults);

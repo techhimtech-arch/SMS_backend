@@ -68,7 +68,10 @@ const getStudents = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build query based on role
-    let query = { schoolId: new mongoose.Types.ObjectId(schoolId) };
+    let query = { 
+      schoolId: new mongoose.Types.ObjectId(schoolId),
+      isActive: true 
+    };
 
     // Parent data isolation - only see their own children
     if (role === 'parent') {

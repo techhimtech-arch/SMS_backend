@@ -11,7 +11,7 @@ const registerSchool = async (req, res) => {
     // Check if school already exists
     const existingSchool = await School.findOne({ email: schoolEmail });
     if (existingSchool) {
-      return res.status(400).json({ message: 'School already exists' });
+      return res.status(400).json({ success: false, message: 'School already exists' });
     }
 
     // Create School
@@ -38,9 +38,13 @@ const registerSchool = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    res.status(201).json({ token });
+    res.status(201).json({
+      success: true,
+      message: 'School registered successfully',
+      data: { token }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 

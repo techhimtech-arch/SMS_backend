@@ -33,10 +33,10 @@ const errorHandler = (err, req, res, next) => {
     error = new ErrorResponse('Resource not found', 404);
   }
 
-  // Mongoose duplicate key
+  // Mongoose duplicate key (E11000)
   if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    error = new ErrorResponse(`Duplicate value for field: ${field}`, 400);
+    const field = err.keyValue ? Object.keys(err.keyValue)[0] : 'field';
+    error = new ErrorResponse(`Duplicate entry detected for ${field}.`, 400);
   }
 
   // Mongoose validation error

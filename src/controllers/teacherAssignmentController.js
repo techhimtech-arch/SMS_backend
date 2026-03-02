@@ -44,13 +44,20 @@ const getAssignments = asyncHandler(async (req, res, next) => {
   // Build query
   let query = { schoolId: new mongoose.Types.ObjectId(schoolId) };
 
+  // Default to active assignments only (unless explicitly filtering)
+  if (req.query.isActive === undefined) {
+    query.isActive = true;
+  } else {
+    query.isActive = req.query.isActive === 'true';
+  }
+
   // Teachers can only see their own assignments
   if (role === 'teacher') {
     query.teacherId = new mongoose.Types.ObjectId(userId);
   }
 
-  // Optional filters
-  if (req.query.teacherId) {
+  // Optional filters (admin only - teacher filter above takes precedence)
+  if (role !== 'teacher' && req.query.teacherId) {
     query.teacherId = new mongoose.Types.ObjectId(req.query.teacherId);
   }
   if (req.query.classId) {
@@ -58,9 +65,6 @@ const getAssignments = asyncHandler(async (req, res, next) => {
   }
   if (req.query.sectionId) {
     query.sectionId = new mongoose.Types.ObjectId(req.query.sectionId);
-  }
-  if (req.query.isActive !== undefined) {
-    query.isActive = req.query.isActive === 'true';
   }
 
   const [totalCount, assignments] = await Promise.all([
@@ -148,16 +152,17 @@ const updateAssignment = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Delete teacher assignment
+// @desc    Delete teacher assignment (soft delete)
 // @route   DELETE /api/v1/teacher-assignments/:id
 // @access  Private (superadmin, school_admin)
 const deleteAssignment = asyncHandler(async (req, res, next) => {
   const { schoolId } = req.user;
 
-  const assignment = await TeacherAssignment.findOneAndDelete({
-    _id: req.params.id,
-    schoolId
-  });
+  const assignment = await TeacherAssignment.findOneAndUpdate(
+    { _id: req.params.id, schoolId },
+    { isActive: false },
+    { new: true }
+  );
 
   if (!assignment) {
     return next(new ErrorResponse('Assignment not found', 404));
