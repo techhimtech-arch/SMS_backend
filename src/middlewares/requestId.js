@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 /**
  * Request ID Middleware
@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
  */
 const requestIdMiddleware = (req, res, next) => {
   // Use existing request ID from header or generate new one
-  const requestId = req.headers['x-request-id'] || uuidv4();
+  const requestId = req.headers['x-request-id'] || crypto.randomUUID();
   
   // Attach to request object
   req.requestId = requestId;
