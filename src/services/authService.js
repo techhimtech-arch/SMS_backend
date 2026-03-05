@@ -1,7 +1,10 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
+
+// Render/Node16: uuid@9 is ESM-only, so require('uuid') throws ERR_REQUIRE_ESM.
+// We don't actually need uuid here; we only need an unpredictable "family" id.
+const uuidv4 = () => crypto.randomUUID();
 const School = require('../models/School');
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
