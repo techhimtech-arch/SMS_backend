@@ -1,5 +1,15 @@
 const express = require('express');
-const { registerSchool, login, requestPasswordReset, resetPassword } = require('../controllers/authController');
+const { 
+  registerSchool, 
+  login, 
+  refreshToken,
+  logout,
+  logoutAll,
+  getActiveSessions,
+  revokeSession,
+  requestPasswordReset, 
+  resetPassword 
+} = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { validateRegister, validateLogin } = require('../validators/authValidator');
 const router = express.Router();
@@ -89,6 +99,106 @@ router.post('/register', validateRegister, registerSchool);
 
 // Login Route
 router.post('/login', validateLogin, login);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: The refresh token received during login
+ *     responses:
+ *       200:
+ *         description: New access and refresh tokens
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
+router.post('/refresh', refreshToken);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout (revoke refresh token)
+ *     tags: [Auth]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
+router.post('/logout', logout);
+
+/**
+ * @swagger
+ * /auth/logout-all:
+ *   post:
+ *     summary: Logout from all devices
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out from all devices
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/logout-all', authMiddleware, logoutAll);
+
+/**
+ * @swagger
+ * /auth/sessions:
+ *   get:
+ *     summary: Get active sessions
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active sessions
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/sessions', authMiddleware, getActiveSessions);
+
+/**
+ * @swagger
+ * /auth/sessions/{sessionId}:
+ *   delete:
+ *     summary: Revoke a specific session
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Session revoked
+ *       404:
+ *         description: Session not found
+ */
+router.delete('/sessions/:sessionId', authMiddleware, revokeSession);
 
 // Protected Test Route
 router.get('/me', authMiddleware, async (req, res) => {

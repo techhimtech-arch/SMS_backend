@@ -1,10 +1,17 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 const School = require('../models/School');
 const User = require('../models/User');
+const RefreshToken = require('../models/RefreshToken');
 const emailService = require('./emailService');
+const { logAuthEvent } = require('../middlewares/auditMiddleware');
 const logger = require('../utils/logger');
+
+// Token configuration
+const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived access token
+const REFRESH_TOKEN_EXPIRY_DAYS = 7; // Refresh token valid for 7 days
 
 class AuthService {
   /**
@@ -56,21 +63,57 @@ class AuthService {
   /**
    * Login user
    */
-  async login(email, password) {
+  async login(email, password, requestInfo = {}) {
     const user = await User.findOne({ email, isActive: true });
     if (!user) {
+      // Log failed login attempt
+      await logAuthEvent({
+        action: 'LOGIN_FAILED',
+        success: false,
+        errorMessage: 'Invalid credentials - user not found',
+        ipAddress: requestInfo.ipAddress,
+        userAgent: requestInfo.userAgent,
+        metadata: { email },
+      });
       throw { status: 401, message: 'Invalid credentials' };
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      // Log failed login attempt
+      await logAuthEvent({
+        action: 'LOGIN_FAILED',
+        userId: user._id,
+        userName: user.name,
+        userRole: user.role,
+        schoolId: user.schoolId,
+        success: false,
+        errorMessage: 'Invalid credentials - wrong password',
+        ipAddress: requestInfo.ipAddress,
+        userAgent: requestInfo.userAgent,
+      });
       throw { status: 401, message: 'Invalid credentials' };
     }
 
-    const token = this.generateToken(user, user.schoolId);
+    // Generate tokens
+    const accessToken = this.generateAccessToken(user, user.schoolId);
+    const { refreshToken, family } = await this.generateRefreshToken(user, user.schoolId, requestInfo);
+
+    // Log successful login
+    await logAuthEvent({
+      action: 'LOGIN',
+      userId: user._id,
+      userName: user.name,
+      userRole: user.role,
+      schoolId: user.schoolId,
+      success: true,
+      ipAddress: requestInfo.ipAddress,
+      userAgent: requestInfo.userAgent,
+    });
 
     return {
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -79,6 +122,117 @@ class AuthService {
         schoolId: user.schoolId,
       }
     };
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  async refreshAccessToken(refreshToken, requestInfo = {}) {
+    // Find the refresh token
+    const storedToken = await RefreshToken.findValidToken(refreshToken);
+    
+    if (!storedToken) {
+      // Check if this is a previously used token (potential theft)
+      const usedToken = await RefreshToken.findOne({ token: refreshToken });
+      if (usedToken && usedToken.isRevoked) {
+        // Token reuse detected - revoke all tokens in the family
+        logger.warn('Refresh token reuse detected - revoking token family', {
+          family: usedToken.family,
+          userId: usedToken.userId,
+        });
+        await RefreshToken.revokeFamily(usedToken.family, 'security');
+      }
+      throw { status: 401, message: 'Invalid or expired refresh token' };
+    }
+
+    // Get user
+    const user = await User.findById(storedToken.userId);
+    if (!user || !user.isActive) {
+      await storedToken.revoke('security');
+      throw { status: 401, message: 'User not found or inactive' };
+    }
+
+    // Implement token rotation - revoke old token and issue new one
+    await storedToken.revoke('token_rotation');
+
+    // Generate new tokens
+    const newAccessToken = this.generateAccessToken(user, storedToken.schoolId);
+    const { refreshToken: newRefreshToken } = await this.generateRefreshToken(
+      user,
+      storedToken.schoolId,
+      requestInfo,
+      storedToken.family // Keep same family for rotation tracking
+    );
+
+    // Log token refresh
+    await logAuthEvent({
+      action: 'TOKEN_REFRESH',
+      userId: user._id,
+      userName: user.name,
+      userRole: user.role,
+      schoolId: storedToken.schoolId,
+      success: true,
+      ipAddress: requestInfo.ipAddress,
+      userAgent: requestInfo.userAgent,
+    });
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  /**
+   * Logout - revoke refresh token
+   */
+  async logout(refreshToken, requestInfo = {}) {
+    const storedToken = await RefreshToken.findOne({ token: refreshToken });
+    
+    if (storedToken) {
+      const userId = storedToken.userId;
+      await storedToken.revoke('logout');
+      
+      // Log logout
+      const user = await User.findById(userId);
+      if (user) {
+        await logAuthEvent({
+          action: 'LOGOUT',
+          userId: user._id,
+          userName: user.name,
+          userRole: user.role,
+          schoolId: storedToken.schoolId,
+          success: true,
+          ipAddress: requestInfo.ipAddress,
+          userAgent: requestInfo.userAgent,
+        });
+      }
+    }
+
+    return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Logout from all devices - revoke all refresh tokens
+   */
+  async logoutAll(userId, requestInfo = {}) {
+    await RefreshToken.revokeAllUserTokens(userId, 'security');
+    
+    const user = await User.findById(userId);
+    if (user) {
+      await logAuthEvent({
+        action: 'LOGOUT',
+        userId: user._id,
+        userName: user.name,
+        userRole: user.role,
+        schoolId: user.schoolId,
+        success: true,
+        ipAddress: requestInfo.ipAddress,
+        userAgent: requestInfo.userAgent,
+        metadata: { logoutAll: true },
+      });
+    }
+
+    return { message: 'Logged out from all devices' };
   }
 
   /**
@@ -132,7 +286,49 @@ class AuthService {
   }
 
   /**
-   * Generate JWT token
+   * Generate short-lived access token
+   */
+  generateAccessToken(user, schoolId) {
+    return jwt.sign(
+      { 
+        userId: user._id, 
+        schoolId, 
+        role: user.role,
+        type: 'access'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+  }
+
+  /**
+   * Generate refresh token and store in database
+   */
+  async generateRefreshToken(user, schoolId, requestInfo = {}, family = null) {
+    const token = crypto.randomBytes(64).toString('hex');
+    const tokenFamily = family || uuidv4();
+    
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
+
+    const refreshToken = new RefreshToken({
+      token,
+      userId: user._id,
+      schoolId,
+      expiresAt,
+      family: tokenFamily,
+      userAgent: requestInfo.userAgent,
+      ipAddress: requestInfo.ipAddress,
+    });
+
+    await refreshToken.save();
+
+    return { refreshToken: token, family: tokenFamily };
+  }
+
+  /**
+   * Generate JWT token (legacy - for backward compatibility)
+   * @deprecated Use generateAccessToken and generateRefreshToken instead
    */
   generateToken(user, schoolId) {
     return jwt.sign(
@@ -144,6 +340,42 @@ class AuthService {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+  }
+
+  /**
+   * Get active sessions for a user
+   */
+  async getActiveSessions(userId) {
+    const sessions = await RefreshToken.find({
+      userId,
+      isRevoked: false,
+      expiresAt: { $gt: new Date() },
+    }).select('createdAt userAgent ipAddress');
+
+    return sessions.map(session => ({
+      id: session._id,
+      createdAt: session.createdAt,
+      userAgent: session.userAgent,
+      ipAddress: session.ipAddress,
+    }));
+  }
+
+  /**
+   * Revoke a specific session
+   */
+  async revokeSession(sessionId, userId) {
+    const session = await RefreshToken.findOne({
+      _id: sessionId,
+      userId,
+      isRevoked: false,
+    });
+
+    if (!session) {
+      throw { status: 404, message: 'Session not found' };
+    }
+
+    await session.revoke('admin_action');
+    return { message: 'Session revoked successfully' };
   }
 }
 

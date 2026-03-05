@@ -20,6 +20,10 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const teacherAssignmentRoutes = require('./routes/teacherAssignmentRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const classTeacherRoutes = require('./routes/classTeacherRoutes');
+// Phase 3 routes (registered when features are enabled)
+// const academicYearRoutes = require('./routes/academicYearRoutes');
+// const reportRoutes = require('./routes/reportRoutes');
+// const auditLogRoutes = require('./routes/auditLogRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
