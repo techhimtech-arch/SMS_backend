@@ -18,6 +18,7 @@ const parentRoutes = require('./routes/parentRoutes');
 const parentPortalRoutes = require('./routes/parentPortalRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const teacherAssignmentRoutes = require('./routes/teacherAssignmentRoutes');
+const subjectRoutes = require('./routes/subjectRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
@@ -136,6 +137,7 @@ app.use('/api/v1/parents', parentRoutes);
 app.use('/api/v1/parent', parentPortalRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/teacher-assignments', teacherAssignmentRoutes);
+app.use('/api/v1/subjects', subjectRoutes);
 
 // ===========================================
 // ERROR HANDLING
