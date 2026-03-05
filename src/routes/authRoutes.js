@@ -1,6 +1,7 @@
 const express = require('express');
 const { registerSchool, login } = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const { validateRegister, validateLogin } = require('../validators/authValidator');
 const router = express.Router();
 const User = require('../models/User');
 
@@ -84,10 +85,10 @@ const User = require('../models/User');
  */
 
 // Register School Route
-router.post('/register', registerSchool);
+router.post('/register', validateRegister, registerSchool);
 
 // Login Route
-router.post('/login', login);
+router.post('/login', validateLogin, login);
 
 // Protected Test Route
 router.get('/me', authMiddleware, async (req, res) => {

@@ -7,6 +7,7 @@ const {
 } = require('../controllers/feesController');
 const protect = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
+const { validateCreateFeeStructure } = require('../validators/feeValidator');
 
 const router = express.Router();
 
@@ -142,7 +143,7 @@ router.use(protect);
 router.use(authorizeRoles('school_admin', 'accountant'));
 
 // Routes
-router.post('/structure', createFeeStructure);
+router.post('/structure', validateCreateFeeStructure, createFeeStructure);
 router.post('/assign/:studentId', assignFeeToStudent);
 router.post('/payment/:studentId', recordFeePayment);
 router.get('/student/:studentId', getStudentFeeDetails);

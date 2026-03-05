@@ -7,6 +7,7 @@ const {
 } = require('../controllers/classController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
+const { validateCreateClass, validateUpdateClass } = require('../validators/classValidator');
 
 /**
  * @swagger
@@ -22,6 +23,7 @@ router.post(
   '/',
   authMiddleware,
   authorizeRoles('school_admin'),
+  validateCreateClass,
   createClass
 );
 
@@ -79,6 +81,7 @@ router.patch(
   '/:id',
   authMiddleware,
   authorizeRoles('school_admin'),
+  validateUpdateClass,
   updateClass
 );
 

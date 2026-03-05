@@ -9,7 +9,7 @@ const {
 } = require('../controllers/teacherAssignmentController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
-const { check } = require('express-validator');
+const { validateCreateAssignment, validateUpdateAssignment } = require('../validators/teacherAssignmentValidator');
 
 const router = express.Router();
 
@@ -66,12 +66,7 @@ router.post(
   '/',
   authMiddleware,
   authorizeRoles('superadmin', 'school_admin'),
-  [
-    check('teacherId', 'Teacher ID is required').notEmpty().isMongoId(),
-    check('classId', 'Class ID is required').notEmpty().isMongoId(),
-    check('sectionId', 'Section ID is required').notEmpty().isMongoId(),
-    check('subjectId', 'Subject ID is required').notEmpty().isMongoId()
-  ],
+  validateCreateAssignment,
   createAssignment
 );
 
@@ -227,6 +222,7 @@ router.patch(
   '/:id',
   authMiddleware,
   authorizeRoles('superadmin', 'school_admin'),
+  validateUpdateAssignment,
   updateAssignment
 );
 

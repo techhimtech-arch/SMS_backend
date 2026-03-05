@@ -99,7 +99,83 @@ const getStudents = async (req, res) => {
   }
 };
 
+// Get single student by ID
+const getStudentById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const schoolId = req.user.schoolId;
+
+  const student = await Student.findOne({ _id: id, schoolId, isActive: true })
+    .populate('classId', 'name')
+    .populate('sectionId', 'name');
+
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  res.status(200).json({ success: true, data: student });
+});
+
+// Update student
+const updateStudent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const schoolId = req.user.schoolId;
+  const updates = req.body;
+
+  // Find student
+  const student = await Student.findOne({ _id: id, schoolId, isActive: true });
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Allowed fields to update
+  const allowedUpdates = [
+    'firstName', 'lastName', 'gender', 'dateOfBirth', 
+    'classId', 'sectionId', 'parentName', 'parentPhone', 
+    'address', 'rollNumber'
+  ];
+
+  // Apply updates
+  allowedUpdates.forEach((field) => {
+    if (updates[field] !== undefined) {
+      student[field] = updates[field];
+    }
+  });
+
+  await student.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Student updated successfully',
+    data: student,
+  });
+});
+
+// Soft delete student
+const deleteStudent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const schoolId = req.user.schoolId;
+
+  const student = await Student.findOne({ _id: id, schoolId, isActive: true });
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Soft delete
+  student.isActive = false;
+  await student.save();
+
+  logger.info('Student soft deleted', { requestId: req.requestId, studentId: id, schoolId });
+
+  res.status(200).json({
+    success: true,
+    message: 'Student deleted successfully',
+  });
+});
+
 module.exports = {
   createStudent,
   getStudents,
+  getStudentById,
+  updateStudent,
+  deleteStudent,
 };
