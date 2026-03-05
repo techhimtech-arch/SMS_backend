@@ -1,50 +1,22 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const School = require('../models/School');
-const User = require('../models/User');
+const authService = require('../services/authService');
+const logger = require('../utils/logger');
 
 // Register School
 const registerSchool = async (req, res) => {
   try {
-    const { schoolName, schoolEmail, adminName, adminEmail, adminPassword } = req.body;
-
-    // Check if school already exists
-    const existingSchool = await School.findOne({ email: schoolEmail });
-    if (existingSchool) {
-      return res.status(400).json({ success: false, message: 'School already exists' });
-    }
-
-    // Create School
-    const school = new School({ name: schoolName, email: schoolEmail });
-    await school.save();
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
-    // Create Admin User
-    const adminUser = new User({
-      name: adminName,
-      email: adminEmail,
-      password: hashedPassword,
-      role: 'school_admin',
-      schoolId: school._id,
-    });
-    await adminUser.save();
-
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: adminUser._id, schoolId: school._id, role: adminUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
+    const result = await authService.registerSchool(req.body);
 
     res.status(201).json({
       success: true,
       message: 'School registered successfully',
-      data: { token }
+      data: { token: result.token }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    logger.error('Registration error', { error: error.message });
+    res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
   }
 };
 
@@ -52,41 +24,48 @@ const registerSchool = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Find user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-
-    // Compare hashed password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: user._id, schoolId: user.schoolId, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const result = await authService.login(email, password);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
-        token,
-        user: {
-          name: user.name,
-          role: user.role,
-          schoolId: user.schoolId,
-        },
+        token: result.token,
+        user: result.user,
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    logger.error('Login error', { error: error.message });
+    res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
   }
 };
 
-module.exports = { registerSchool, login };
+// Request Password Reset
+const requestPasswordReset = async (req, res) => {
+  try {
+    const result = await authService.requestPasswordReset(req.body.email);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    logger.error('Password reset request error', { error: error.message });
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Reset Password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    const result = await authService.resetPassword(token, newPassword);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
+  }
+};
+
+module.exports = { registerSchool, login, requestPasswordReset, resetPassword };

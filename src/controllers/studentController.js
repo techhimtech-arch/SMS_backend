@@ -1,175 +1,185 @@
-const Student = require('../models/Student');
 const asyncHandler = require('express-async-handler');
-const { validationResult } = require('express-validator');
-const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+const studentService = require('../services/studentService');
+const csvService = require('../services/csvService');
 
 // Create a new student
 const createStudent = asyncHandler(async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
-  const { admissionNumber, firstName, lastName, gender, dateOfBirth, classId, sectionId, parentName, parentPhone, address } = req.body;
-
-  if (!req.user || !req.user.schoolId) {
-    logger.warn('Missing schoolId in request', { requestId: req.requestId });
-    return res.status(401).json({ success: false, message: 'Unauthorized: Missing schoolId' });
-  }
-
   try {
-    // Ensure classId and sectionId belong to the same school
-    // This logic assumes Class and Section models have a schoolId field
-
-    const student = await Student.create({
-      admissionNumber,
-      firstName,
-      lastName,
-      gender,
-      dateOfBirth,
-      classId,
-      sectionId,
-      parentName,
-      parentPhone,
-      address,
-      schoolId: req.user.schoolId, // Assign schoolId from logged-in user
-    });
-
+    const student = await studentService.createStudent(req.body, req.user.schoolId);
+    
     res.status(201).json({
       success: true,
       message: 'Student created successfully',
       data: student,
     });
   } catch (error) {
-    logger.error('Error in createStudent', { requestId: req.requestId, error: error.message, stack: error.stack });
-    res.status(500).json({
+    logger.error('Error in createStudent', { requestId: req.requestId, error: error.message });
+    res.status(error.status || 500).json({
       success: false,
-      message: 'Server error',
-      error: error.message,
+      message: error.message || 'Server error',
     });
   }
 });
 
 // Fetch all students for the logged-in user's school (with pagination)
-const getStudents = async (req, res) => {
+const getStudents = asyncHandler(async (req, res) => {
   try {
     const { schoolId, role, id: userId } = req.user;
+    const { page, limit, classId, sectionId, search } = req.query;
 
-    // Pagination params
-    let page = parseInt(req.query.page) || 1;
-    let limit = parseInt(req.query.limit) || 10;
-
-    // Enforce limits
-    if (page < 1) page = 1;
-    if (limit < 1) limit = 10;
-    if (limit > 100) limit = 100;
-
-    const skip = (page - 1) * limit;
-
-    // Build query based on role
-    let query = { 
-      schoolId: new mongoose.Types.ObjectId(schoolId),
-      isActive: true 
-    };
-
-    // Parent data isolation - only see their own children
-    if (role === 'parent') {
-      query.parentUserId = new mongoose.Types.ObjectId(userId);
-    }
-
-    // Get total count and paginated data
-    const [totalCount, students] = await Promise.all([
-      Student.countDocuments(query),
-      Student.find(query).skip(skip).limit(limit)
-    ]);
-
-    const totalPages = Math.ceil(totalCount / limit);
+    const result = await studentService.getStudents(schoolId, {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 10,
+      role,
+      userId,
+      classId,
+      sectionId,
+      search
+    });
 
     res.status(200).json({
       success: true,
-      count: students.length,
-      page,
-      totalPages,
-      data: students
+      count: result.students.length,
+      page: result.pagination.page,
+      totalPages: result.pagination.totalPages,
+      total: result.pagination.total,
+      data: result.students
     });
   } catch (error) {
-    logger.error('Error fetching students', { requestId: req.requestId, error: error.message, stack: error.stack });
+    logger.error('Error fetching students', { requestId: req.requestId, error: error.message });
     res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+});
 
 // Get single student by ID
 const getStudentById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const schoolId = req.user.schoolId;
-
-  const student = await Student.findOne({ _id: id, schoolId, isActive: true })
-    .populate('classId', 'name')
-    .populate('sectionId', 'name');
-
-  if (!student) {
-    return res.status(404).json({ success: false, message: 'Student not found' });
+  try {
+    const student = await studentService.getStudentById(req.params.id, req.user.schoolId);
+    res.status(200).json({ success: true, data: student });
+  } catch (error) {
+    res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
   }
-
-  res.status(200).json({ success: true, data: student });
 });
 
 // Update student
 const updateStudent = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const schoolId = req.user.schoolId;
-  const updates = req.body;
-
-  // Find student
-  const student = await Student.findOne({ _id: id, schoolId, isActive: true });
-  if (!student) {
-    return res.status(404).json({ success: false, message: 'Student not found' });
+  try {
+    const student = await studentService.updateStudent(
+      req.params.id, 
+      req.user.schoolId, 
+      req.body
+    );
+    
+    res.status(200).json({
+      success: true,
+      message: 'Student updated successfully',
+      data: student,
+    });
+  } catch (error) {
+    res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
   }
-
-  // Allowed fields to update
-  const allowedUpdates = [
-    'firstName', 'lastName', 'gender', 'dateOfBirth', 
-    'classId', 'sectionId', 'parentName', 'parentPhone', 
-    'address', 'rollNumber'
-  ];
-
-  // Apply updates
-  allowedUpdates.forEach((field) => {
-    if (updates[field] !== undefined) {
-      student[field] = updates[field];
-    }
-  });
-
-  await student.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Student updated successfully',
-    data: student,
-  });
 });
 
 // Soft delete student
 const deleteStudent = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const schoolId = req.user.schoolId;
-
-  const student = await Student.findOne({ _id: id, schoolId, isActive: true });
-  if (!student) {
-    return res.status(404).json({ success: false, message: 'Student not found' });
+  try {
+    const result = await studentService.deleteStudent(req.params.id, req.user.schoolId);
+    
+    logger.info('Student soft deleted', { 
+      requestId: req.requestId, 
+      studentId: req.params.id, 
+      schoolId: req.user.schoolId 
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    res.status(error.status || 500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
   }
+});
 
-  // Soft delete
-  student.isActive = false;
-  await student.save();
+// Bulk import students from CSV
+const bulkImportStudents = asyncHandler(async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No CSV file uploaded' 
+      });
+    }
 
-  logger.info('Student soft deleted', { requestId: req.requestId, studentId: id, schoolId });
+    const csvContent = req.file.buffer.toString('utf-8');
+    
+    // Parse CSV
+    const requiredHeaders = ['admissionnumber', 'firstname', 'classid', 'sectionid'];
+    const parsed = csvService.parseCSV(csvContent, requiredHeaders);
 
-  res.status(200).json({
-    success: true,
-    message: 'Student deleted successfully',
-  });
+    if (parsed.errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'CSV validation failed',
+        errors: parsed.errors
+      });
+    }
+
+    // Validate each row
+    const validationErrors = [];
+    parsed.data.forEach((row, index) => {
+      const rowErrors = csvService.validateStudentRow(row, row._rowNumber || index + 2);
+      validationErrors.push(...rowErrors);
+    });
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Data validation failed',
+        errors: validationErrors
+      });
+    }
+
+    // Import students
+    const result = await studentService.bulkImportStudents(parsed.data, req.user.schoolId);
+
+    logger.info('Bulk import completed', {
+      requestId: req.requestId,
+      schoolId: req.user.schoolId,
+      success: result.success.length,
+      failed: result.failed.length
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Import completed: ${result.success.length} successful, ${result.failed.length} failed`,
+      data: result
+    });
+  } catch (error) {
+    logger.error('Bulk import error', { requestId: req.requestId, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Bulk import failed: ' + error.message 
+    });
+  }
+});
+
+// Get CSV template for student import
+const getImportTemplate = asyncHandler(async (req, res) => {
+  const template = csvService.generateStudentTemplate();
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=student_import_template.csv');
+  res.status(200).send(template);
 });
 
 module.exports = {
@@ -178,4 +188,6 @@ module.exports = {
   getStudentById,
   updateStudent,
   deleteStudent,
+  bulkImportStudents,
+  getImportTemplate,
 };

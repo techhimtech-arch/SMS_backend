@@ -1,8 +1,9 @@
 const express = require('express');
-const { createStudent, getStudents, getStudentById, updateStudent, deleteStudent } = require('../controllers/studentController');
+const { createStudent, getStudents, getStudentById, updateStudent, deleteStudent, bulkImportStudents, getImportTemplate } = require('../controllers/studentController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
 const { validateCreateStudent, validateUpdateStudent } = require('../validators/studentValidator');
+const { handleCSVUpload } = require('../middlewares/uploadMiddleware');
 
 const router = express.Router();
 
@@ -197,5 +198,66 @@ router.put('/:id', authMiddleware, authorizeRoles('school_admin'), validateUpdat
  *         description: Student not found
  */
 router.delete('/:id', authMiddleware, authorizeRoles('school_admin'), deleteStudent);
+
+/**
+ * @swagger
+ * /students/import/template:
+ *   get:
+ *     summary: Download CSV template for bulk import
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CSV template file
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ */
+router.get('/import/template', authMiddleware, authorizeRoles('school_admin'), getImportTemplate);
+
+/**
+ * @swagger
+ * /students/import/bulk:
+ *   post:
+ *     summary: Bulk import students from CSV
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV file with student data
+ *     responses:
+ *       200:
+ *         description: Import completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: array
+ *                     failed:
+ *                       type: array
+ *       400:
+ *         description: Invalid CSV or validation errors
+ */
+router.post('/import/bulk', authMiddleware, authorizeRoles('school_admin'), handleCSVUpload, bulkImportStudents);
 
 module.exports = router;

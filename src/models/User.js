@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema(
       ref: 'School',
     },
     isActive: { type: Boolean, default: true },
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date },
   },
   { timestamps: true }
 );
