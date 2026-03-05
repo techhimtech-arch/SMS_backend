@@ -15,7 +15,7 @@ const User = require('../models/User');
  * @swagger
  * /auth/register:
  *   post:
- *     summary: Register a new school
+ *     summary: Register a new school with admin
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -23,18 +23,40 @@ const User = require('../models/User');
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - schoolName
+ *               - schoolEmail
+ *               - adminName
+ *               - adminEmail
+ *               - adminPassword
  *             properties:
- *               name:
+ *               schoolName:
  *                 type: string
- *               email:
+ *                 description: Name of the school
+ *                 example: Delhi Public School
+ *               schoolEmail:
  *                 type: string
- *               password:
+ *                 description: School's official email
+ *                 example: contact@dps.edu
+ *               adminName:
  *                 type: string
+ *                 description: Name of the school admin
+ *                 example: John Doe
+ *               adminEmail:
+ *                 type: string
+ *                 description: Admin's login email
+ *                 example: admin@dps.edu
+ *               adminPassword:
+ *                 type: string
+ *                 description: Admin's password (min 6 characters)
+ *                 example: password123
  *     responses:
  *       201:
  *         description: School registered successfully
  *       400:
- *         description: Bad request
+ *         description: School already exists
+ *       500:
+ *         description: Server error
  */
 
 /**
