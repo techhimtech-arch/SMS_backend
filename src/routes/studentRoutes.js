@@ -60,7 +60,7 @@ const router = express.Router();
 router.post(
   '/',
   authMiddleware,
-  authorizeRoles('school_admin'),
+  authorizeRoles('school_admin', 'teacher'),
   validateCreateStudent,
   createStudent
 );
