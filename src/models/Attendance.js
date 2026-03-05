@@ -20,7 +20,12 @@ const attendanceSchema = new mongoose.Schema(
     subjectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subject',
-      required: true,
+      required: false, // Optional - null for daily attendance, filled for subject-wise
+    },
+    attendanceType: {
+      type: String,
+      enum: ['daily', 'subject'],
+      default: 'daily'
     },
     schoolId: {
       type: mongoose.Schema.Types.ObjectId,

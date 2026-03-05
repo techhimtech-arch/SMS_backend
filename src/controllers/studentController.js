@@ -6,7 +6,8 @@ const csvService = require('../services/csvService');
 // Create a new student
 const createStudent = asyncHandler(async (req, res) => {
   try {
-    const student = await studentService.createStudent(req.body, req.user.schoolId);
+    const { schoolId, role, id: userId } = req.user;
+    const student = await studentService.createStudent(req.body, schoolId, { role, userId });
     
     res.status(201).json({
       success: true,

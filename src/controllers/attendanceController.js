@@ -1,11 +1,12 @@
 const Attendance = require('../models/Attendance');
 const TeacherAssignment = require('../models/TeacherAssignment');
+const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 
-// POST /api/attendance
+// POST /api/attendance (Daily attendance - by class teacher)
 exports.markAttendance = asyncHandler(async (req, res, next) => {
-  const { studentId, date, status, classId, sectionId, subjectId } = req.body;
+  const { studentId, date, status, classId, sectionId, subjectId, attendanceType = 'daily' } = req.body;
   const { role, id: userId, schoolId } = req.user;
 
   // Validate student belongs to the same school
@@ -17,29 +18,50 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
   if (role === 'superadmin' || role === 'school_admin') {
     // Allow - no assignment check needed
   } else if (role === 'teacher') {
-    // Verify teacher assignment
-    const assignment = await TeacherAssignment.findOne({
-      teacherId: userId,
-      classId,
-      sectionId,
-      subjectId,
-      schoolId,
-      isActive: true,
-    });
+    if (attendanceType === 'daily') {
+      // For daily attendance - check if teacher is CLASS TEACHER of this section
+      const classTeacherAssignment = await ClassTeacherAssignment.findOne({
+        teacherId: userId,
+        classId,
+        sectionId,
+        schoolId,
+        isActive: true,
+      });
 
-    if (!assignment) {
-      return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
+      if (!classTeacherAssignment) {
+        return next(new ErrorResponse('You are not the class teacher of this section. Only class teachers can mark daily attendance.', 403));
+      }
+    } else if (attendanceType === 'subject' && subjectId) {
+      // For subject-wise attendance - check subject assignment
+      const assignment = await TeacherAssignment.findOne({
+        teacherId: userId,
+        classId,
+        sectionId,
+        subjectId,
+        schoolId,
+        isActive: true,
+      });
+
+      if (!assignment) {
+        return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
+      }
     }
   } else {
     return next(new ErrorResponse('You are not authorized.', 403));
   }
 
   // Check for duplicate attendance
-  const existingAttendance = await Attendance.findOne({
+  const duplicateQuery = {
     studentId,
     date,
     schoolId,
-  });
+    attendanceType,
+  };
+  if (attendanceType === 'subject' && subjectId) {
+    duplicateQuery.subjectId = subjectId;
+  }
+
+  const existingAttendance = await Attendance.findOne(duplicateQuery);
 
   if (existingAttendance) {
     return next(new ErrorResponse('Attendance already marked for this student on this date', 400));
@@ -49,7 +71,8 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
     studentId,
     classId,
     sectionId,
-    subjectId,
+    subjectId: attendanceType === 'subject' ? subjectId : null,
+    attendanceType,
     schoolId,
     date,
     status,
@@ -59,27 +82,42 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
   res.status(201).json({ success: true, data: attendance });
 });
 
-// POST /api/attendance/bulk
+// POST /api/attendance/bulk (Bulk daily attendance - by class teacher)
 exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
-  const { date, records, classId, sectionId, subjectId } = req.body;
+  const { date, records, classId, sectionId, subjectId, attendanceType = 'daily' } = req.body;
   const { role, id: userId, schoolId } = req.user;
 
   // Role-based authorization
   if (role === 'superadmin' || role === 'school_admin') {
     // Allow - no assignment check needed
   } else if (role === 'teacher') {
-    // Verify teacher assignment
-    const assignment = await TeacherAssignment.findOne({
-      teacherId: userId,
-      classId,
-      sectionId,
-      subjectId,
-      schoolId,
-      isActive: true,
-    });
+    if (attendanceType === 'daily') {
+      // For daily attendance - check if teacher is CLASS TEACHER
+      const classTeacherAssignment = await ClassTeacherAssignment.findOne({
+        teacherId: userId,
+        classId,
+        sectionId,
+        schoolId,
+        isActive: true,
+      });
 
-    if (!assignment) {
-      return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
+      if (!classTeacherAssignment) {
+        return next(new ErrorResponse('You are not the class teacher of this section.', 403));
+      }
+    } else if (attendanceType === 'subject' && subjectId) {
+      // For subject-wise attendance
+      const assignment = await TeacherAssignment.findOne({
+        teacherId: userId,
+        classId,
+        sectionId,
+        subjectId,
+        schoolId,
+        isActive: true,
+      });
+
+      if (!assignment) {
+        return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
+      }
     }
   } else {
     return next(new ErrorResponse('You are not authorized.', 403));
@@ -89,7 +127,8 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
     ...record,
     classId,
     sectionId,
-    subjectId,
+    subjectId: attendanceType === 'subject' ? subjectId : null,
+    attendanceType,
     schoolId,
     markedBy: userId,
     date,

@@ -1,6 +1,7 @@
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const Section = require('../models/Section');
+const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const emailService = require('./emailService');
@@ -9,7 +10,27 @@ class StudentService {
   /**
    * Create a new student
    */
-  async createStudent(studentData, schoolId) {
+  async createStudent(studentData, schoolId, userInfo = {}) {
+    const { role, userId } = userInfo;
+
+    // If teacher, verify they are class teacher of this section
+    if (role === 'teacher') {
+      const classTeacherAssignment = await ClassTeacherAssignment.findOne({
+        teacherId: userId,
+        classId: studentData.classId,
+        sectionId: studentData.sectionId,
+        schoolId,
+        isActive: true
+      });
+
+      if (!classTeacherAssignment) {
+        throw { 
+          status: 403, 
+          message: 'You can only add students to sections where you are the class teacher' 
+        };
+      }
+    }
+
     // Verify class exists and belongs to school
     const classExists = await Class.findOne({ 
       _id: studentData.classId, 
@@ -70,22 +91,56 @@ class StudentService {
       isActive: true 
     };
 
-    // Parent data isolation
+    // Parent data isolation - only see their own children
     if (role === 'parent') {
       query.parentUserId = new mongoose.Types.ObjectId(userId);
     }
 
-    // Optional filters
-    if (classId) query.classId = new mongoose.Types.ObjectId(classId);
-    if (sectionId) query.sectionId = new mongoose.Types.ObjectId(sectionId);
+    // Teacher data isolation - only see their class teacher assigned sections
+    if (role === 'teacher') {
+      const classTeacherAssignments = await ClassTeacherAssignment.find({
+        teacherId: userId,
+        schoolId,
+        isActive: true
+      });
+
+      if (classTeacherAssignments.length > 0) {
+        // Teacher can see students from sections where they are class teacher
+        const sectionConditions = classTeacherAssignments.map(a => ({
+          classId: a.classId,
+          sectionId: a.sectionId
+        }));
+        query.$or = sectionConditions;
+      } else {
+        // Teacher is not class teacher of any section - show no students
+        return {
+          students: [],
+          pagination: { total: 0, page: 1, totalPages: 0, limit: limitNum }
+        };
+      }
+    }
+
+    // Optional filters (for admin or further filtering)
+    if (classId && role !== 'teacher') query.classId = new mongoose.Types.ObjectId(classId);
+    if (sectionId && role !== 'teacher') query.sectionId = new mongoose.Types.ObjectId(sectionId);
     
     // Search by name or admission number
     if (search) {
-      query.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { admissionNumber: { $regex: search, $options: 'i' } }
-      ];
+      const searchCondition = {
+        $or: [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { admissionNumber: { $regex: search, $options: 'i' } }
+        ]
+      };
+      // Combine with existing query
+      if (query.$or) {
+        query = { $and: [{ $or: query.$or }, searchCondition] };
+        query.$and[0].schoolId = new mongoose.Types.ObjectId(schoolId);
+        query.$and[0].isActive = true;
+      } else {
+        query.$or = searchCondition.$or;
+      }
     }
 
     const [totalCount, students] = await Promise.all([
