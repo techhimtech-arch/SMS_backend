@@ -6,7 +6,7 @@ const csvService = require('../services/csvService');
 // Create a new student
 const createStudent = asyncHandler(async (req, res) => {
   try {
-    const { schoolId, role, id: userId } = req.user;
+    const { schoolId, role, _id: userId } = req.user;
     const student = await studentService.createStudent(req.body, schoolId, { role, userId });
     
     res.status(201).json({
@@ -26,7 +26,7 @@ const createStudent = asyncHandler(async (req, res) => {
 // Fetch all students for the logged-in user's school (with pagination)
 const getStudents = asyncHandler(async (req, res) => {
   try {
-    const { schoolId, role, id: userId } = req.user;
+    const { schoolId, role, _id: userId } = req.user;
     const { page, limit, classId, sectionId, search } = req.query;
 
     const result = await studentService.getStudents(schoolId, {
