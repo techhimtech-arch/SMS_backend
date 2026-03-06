@@ -87,7 +87,7 @@ exports.getClassTeacherAssignments = asyncHandler(async (req, res, next) => {
 // @route   GET /api/class-teacher/my-classes
 // @access  Private (teacher)
 exports.getMyClassTeacherClasses = asyncHandler(async (req, res, next) => {
-  const { id: teacherId, schoolId } = req.user;
+  const { userId: teacherId, schoolId } = req.user;
 
   const assignments = await ClassTeacherAssignment.find({
     teacherId,
@@ -109,7 +109,7 @@ exports.getMyClassTeacherClasses = asyncHandler(async (req, res, next) => {
 // @access  Private (teacher)
 exports.checkClassTeacher = asyncHandler(async (req, res, next) => {
   const { classId, sectionId } = req.params;
-  const { id: teacherId, schoolId } = req.user;
+  const { userId: teacherId, schoolId } = req.user;
 
   const assignment = await ClassTeacherAssignment.findOne({
     teacherId,
