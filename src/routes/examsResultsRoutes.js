@@ -41,16 +41,25 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - classId
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Name of the exam
  *               classId:
  *                 type: string
+ *                 description: Class ObjectId
  *               academicYear:
  *                 type: string
+ *                 description: >
+ *                   Optional academic year label (e.g. "2024-2025").
+ *                   If omitted, the school's current academic year will be used.
  *               examDate:
  *                 type: string
  *                 format: date
+ *                 description: Optional exam date (YYYY-MM-DD)
  *     responses:
  *       201:
  *         description: Exam created successfully
@@ -160,6 +169,14 @@ const router = express.Router();
  *         name: examId
  *         schema:
  *           type: string
+ *         description: Filter results for a specific exam
+ *       - in: query
+ *         name: academicYear
+ *         schema:
+ *           type: string
+ *         description: >
+ *           Optional academic year label (e.g. "2024-2025").
+ *           Used when examId is not provided to fetch all results for that year.
  *     responses:
  *       200:
  *         description: Student results retrieved successfully

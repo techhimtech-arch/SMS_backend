@@ -20,10 +20,10 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const teacherAssignmentRoutes = require('./routes/teacherAssignmentRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const classTeacherRoutes = require('./routes/classTeacherRoutes');
-// Phase 3 routes (registered when features are enabled)
-// const academicYearRoutes = require('./routes/academicYearRoutes');
-// const reportRoutes = require('./routes/reportRoutes');
-// const auditLogRoutes = require('./routes/auditLogRoutes');
+// Phase 3 routes
+const academicYearRoutes = require('./routes/academicYearRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const auditLogRoutes = require('./routes/auditLogRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
@@ -144,6 +144,9 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/teacher-assignments', teacherAssignmentRoutes);
 app.use('/api/v1/subjects', subjectRoutes);
 app.use('/api/v1/class-teacher', classTeacherRoutes);
+app.use('/api/v1/academic-years', academicYearRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/audit-logs', auditLogRoutes);
 
 // ===========================================
 // ERROR HANDLING

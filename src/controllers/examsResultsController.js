@@ -5,16 +5,25 @@ const Student = require('../models/Student');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
+const { getCurrentAcademicYearOrThrow } = require('../utils/academicYearHelper');
 
 // POST /api/exams
 exports.createExam = asyncHandler(async (req, res, next) => {
   const { name, classId, academicYear, examDate } = req.body;
+  const { schoolId } = req.user;
+
+  // If academicYear not provided, default to current academic year name
+  let yearValue = academicYear;
+  if (!yearValue) {
+    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
+    yearValue = currentYear.name;
+  }
 
   const exam = await Exam.create({
     name,
     classId,
-    schoolId: req.user.schoolId,
-    academicYear,
+    schoolId,
+    academicYear: yearValue,
     examDate,
   });
 
@@ -96,7 +105,7 @@ exports.addResult = asyncHandler(async (req, res, next) => {
 // GET /api/results/student/:studentId
 exports.getStudentResults = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
-  const { examId } = req.query;
+  const { examId, academicYear } = req.query;
   const { role, id: userId, schoolId } = req.user;
 
   // Parent data isolation - verify studentId belongs to parent
@@ -117,7 +126,20 @@ exports.getStudentResults = asyncHandler(async (req, res, next) => {
     schoolId,
   };
 
-  if (examId) query.examId = examId;
+  // If specific examId is provided, use it directly
+  if (examId) {
+    query.examId = examId;
+  } else if (academicYear) {
+    // Filter by academic year via Exam collection
+    const exams = await Exam.find({ schoolId, academicYear }).select('_id');
+
+    if (exams.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const examIds = exams.map((exam) => exam._id);
+    query.examId = { $in: examIds };
+  }
 
   const results = await Result.find(query)
     .populate('subjectId', 'name')

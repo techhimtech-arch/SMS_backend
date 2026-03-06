@@ -3,15 +3,24 @@ const StudentFee = require('../models/StudentFee');
 const FeePayment = require('../models/FeePayment');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
+const { getCurrentAcademicYearOrThrow } = require('../utils/academicYearHelper');
 
 // POST /api/fees/structure
 exports.createFeeStructure = asyncHandler(async (req, res, next) => {
   const { classId, academicYear, tuitionFee, transportFee, examFee, otherCharges } = req.body;
+  const { schoolId } = req.user;
+
+  // Default to current academic year if not provided
+  let yearValue = academicYear;
+  if (!yearValue) {
+    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
+    yearValue = currentYear.name;
+  }
 
   const existingStructure = await FeeStructure.findOne({
     classId,
-    academicYear,
-    schoolId: req.user.schoolId,
+    academicYear: yearValue,
+    schoolId,
   });
 
   if (existingStructure) {
@@ -20,8 +29,8 @@ exports.createFeeStructure = asyncHandler(async (req, res, next) => {
 
   const feeStructure = await FeeStructure.create({
     classId,
-    schoolId: req.user.schoolId,
-    academicYear,
+    schoolId,
+    academicYear: yearValue,
     tuitionFee,
     transportFee,
     examFee,
@@ -35,11 +44,19 @@ exports.createFeeStructure = asyncHandler(async (req, res, next) => {
 exports.assignFeeToStudent = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
   const { academicYear } = req.body;
+  const { schoolId } = req.user;
+
+  // Default to current academic year if not provided
+  let yearValue = academicYear;
+  if (!yearValue) {
+    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
+    yearValue = currentYear.name;
+  }
 
   const feeStructure = await FeeStructure.findOne({
     classId: req.body.classId,
-    academicYear,
-    schoolId: req.user.schoolId,
+    academicYear: yearValue,
+    schoolId,
   });
 
   if (!feeStructure) {
@@ -54,8 +71,8 @@ exports.assignFeeToStudent = asyncHandler(async (req, res, next) => {
 
   const studentFee = await StudentFee.create({
     studentId,
-    schoolId: req.user.schoolId,
-    academicYear,
+    schoolId,
+    academicYear: yearValue,
     totalAmount,
     balanceAmount: totalAmount,
   });
@@ -66,23 +83,33 @@ exports.assignFeeToStudent = asyncHandler(async (req, res, next) => {
 // POST /api/fees/payment/:studentId
 exports.recordFeePayment = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
-  const { amount, paymentMode } = req.body;
+  const { amount, paymentMode, academicYear } = req.body;
+  const { schoolId, userId } = req.user;
+
+  // Determine academic year for this payment
+  let yearValue = academicYear;
+  if (!yearValue) {
+    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
+    yearValue = currentYear.name;
+  }
 
   const studentFee = await StudentFee.findOne({
     studentId,
-    schoolId: req.user.schoolId,
+    schoolId,
+    academicYear: yearValue,
   });
 
   if (!studentFee) {
-    return next(new ErrorResponse('Student fee record not found', 404));
+    return next(new ErrorResponse('Student fee record not found for this academic year', 404));
   }
 
   const feePayment = await FeePayment.create({
     studentId,
-    schoolId: req.user.schoolId,
+    schoolId,
+    academicYear: yearValue,
     amount,
     paymentMode,
-    receivedBy: req.user.userId,
+    receivedBy: userId,
   });
 
   studentFee.paidAmount += amount;
@@ -95,20 +122,35 @@ exports.recordFeePayment = asyncHandler(async (req, res, next) => {
 // GET /api/fees/student/:studentId
 exports.getStudentFeeDetails = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
+  const { academicYear } = req.query;
+  const { schoolId } = req.user;
 
-  const studentFee = await StudentFee.findOne({
+  const feeQuery = {
     studentId,
-    schoolId: req.user.schoolId,
-  });
+    schoolId,
+  };
+
+  if (academicYear) {
+    feeQuery.academicYear = academicYear;
+  }
+
+  // If academicYear not provided, get most recent record
+  const studentFee = await StudentFee.findOne(feeQuery).sort({ createdAt: -1 });
 
   if (!studentFee) {
     return next(new ErrorResponse('Student fee record not found', 404));
   }
 
-  const paymentHistory = await FeePayment.find({
+  const paymentQuery = {
     studentId,
-    schoolId: req.user.schoolId,
-  });
+    schoolId,
+  };
+
+  if (academicYear) {
+    paymentQuery.academicYear = academicYear;
+  }
+
+  const paymentHistory = await FeePayment.find(paymentQuery).sort({ paymentDate: 1 });
 
   res.status(200).json({
     success: true,

@@ -32,11 +32,18 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - classId
+ *               - tuitionFee
  *             properties:
  *               classId:
  *                 type: string
+ *                 description: Class ObjectId
  *               academicYear:
  *                 type: string
+ *                 description: >
+ *                   Optional academic year label (e.g. "2024-2025").
+ *                   If omitted, the school's current academic year will be used.
  *               tuitionFee:
  *                 type: number
  *               transportFee:
@@ -72,11 +79,17 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - classId
  *             properties:
  *               academicYear:
  *                 type: string
+ *                 description: >
+ *                   Optional academic year label (e.g. "2024-2025").
+ *                   If omitted, the school's current academic year will be used.
  *               classId:
  *                 type: string
+ *                 description: Class ObjectId to match fee structure
  *     responses:
  *       201:
  *         description: Fee assigned to student successfully
@@ -104,12 +117,21 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - amount
+ *               - paymentMode
  *             properties:
  *               amount:
  *                 type: number
  *               paymentMode:
  *                 type: string
  *                 enum: [Cash, UPI, Bank]
+ *               academicYear:
+ *                 type: string
+ *                 description: >
+ *                   Optional academic year label (e.g. "2024-2025").
+ *                   If omitted, the school's current academic year will be used
+ *                   to locate the StudentFee record and tag the payment.
  *     responses:
  *       201:
  *         description: Payment recorded successfully
@@ -131,6 +153,14 @@ const router = express.Router();
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: academicYear
+ *         schema:
+ *           type: string
+ *         description: >
+ *           Optional academic year label (e.g. "2024-2025").
+ *           If provided, returns fee summary and payment history for that year.
+ *           If omitted, returns the most recent academic year's record.
  *     responses:
  *       200:
  *         description: Student fee details retrieved successfully

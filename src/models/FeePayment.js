@@ -12,6 +12,9 @@ const feePaymentSchema = new mongoose.Schema(
       ref: 'School',
       required: true,
     },
+    academicYear: {
+      type: String,
+    },
     amount: {
       type: Number,
       required: true,

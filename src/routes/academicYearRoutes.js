@@ -41,8 +41,7 @@ const {
  *       401:
  *         description: Unauthorized
  */
-router.get('/', authMiddleware, getAllAcademicYears);
-
+// IMPORTANT: /current must be defined before /:id so "current" is not matched as id
 /**
  * @swagger
  * /academic-years/current:
@@ -58,6 +57,8 @@ router.get('/', authMiddleware, getAllAcademicYears);
  *         description: No current academic year set
  */
 router.get('/current', authMiddleware, getCurrentAcademicYear);
+
+router.get('/', authMiddleware, getAllAcademicYears);
 
 /**
  * @swagger
