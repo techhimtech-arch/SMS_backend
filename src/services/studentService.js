@@ -64,6 +64,7 @@ class StudentService {
     const student = await Student.create({
       ...studentData,
       schoolId,
+      createdBy: userId,
     });
 
     // Send admission confirmation email (async - don't wait)
@@ -173,8 +174,7 @@ class StudentService {
     const student = await Student.findOne({ _id: id, schoolId, isActive: true })
       .populate('classId', 'name')
       .populate('sectionId', 'name')
-      .populate('parentUserId', 'name email')
-      .populate('createdBy', 'name');
+      .populate('parentUserId', 'name email');
 
     if (!student) {
       throw { status: 404, message: 'Student not found' };
