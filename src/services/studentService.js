@@ -148,6 +148,8 @@ class StudentService {
       Student.find(query)
         .populate('classId', 'name')
         .populate('sectionId', 'name')
+        .populate('parentUserId', 'name email')
+        .populate('createdBy', 'name')
         .skip(skip)
         .limit(limitNum)
         .sort({ createdAt: -1 })
@@ -170,7 +172,9 @@ class StudentService {
   async getStudentById(id, schoolId) {
     const student = await Student.findOne({ _id: id, schoolId, isActive: true })
       .populate('classId', 'name')
-      .populate('sectionId', 'name');
+      .populate('sectionId', 'name')
+      .populate('parentUserId', 'name email')
+      .populate('createdBy', 'name');
 
     if (!student) {
       throw { status: 404, message: 'Student not found' };

@@ -175,7 +175,11 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
   }
 
   const attendance = await Attendance.find(query)
-    .populate('studentId', 'firstName lastName');
+    .populate('studentId', 'firstName lastName admissionNumber')
+    .populate('classId', 'name')
+    .populate('sectionId', 'name')
+    .populate('subjectId', 'name')
+    .populate('markedBy', 'name');
 
   res.status(200).json({ success: true, data: attendance });
 });
