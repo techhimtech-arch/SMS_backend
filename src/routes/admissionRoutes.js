@@ -54,9 +54,6 @@ router.get('/form-data', authMiddleware, authorizeRoles('school_admin', 'teacher
  *               - admissionNumber
  *               - gender
  *               - dateOfBirth
- *               - academicYearId
- *               - classId
- *               - sectionId
  *             properties:
  *               firstName:
  *                 type: string
@@ -91,19 +88,19 @@ router.get('/form-data', authMiddleware, authorizeRoles('school_admin', 'teacher
  *                 example: "TempPassword123"
  *               academicYearId:
  *                 type: string
- *                 description: Academic year ID
+ *                 description: Academic year ID (optional)
  *                 example: "65aa221b8f9e8a001c9e4a1b"
  *               classId:
  *                 type: string
- *                 description: Class ID
+ *                 description: Class ID (optional)
  *                 example: "65bb331b8f9e8a001c9e4a1c"
  *               sectionId:
  *                 type: string
- *                 description: Section ID
+ *                 description: Section ID (optional)
  *                 example: "65cc441b8f9e8a001c9e4a1d"
  *               rollNumber:
  *                 type: integer
- *                 description: Roll number in section
+ *                 description: Roll number in section (optional)
  *                 example: 12
  *               parentUserId:
  *                 type: string
@@ -111,16 +108,16 @@ router.get('/form-data', authMiddleware, authorizeRoles('school_admin', 'teacher
  *                 example: "65df12ab8f9e8a001c9e4a1e"
  *               address:
  *                 type: string
- *                 description: Student's address
+ *                 description: Student's address (optional)
  *                 example: "123 Main Street, Delhi"
  *               bloodGroup:
  *                 type: string
  *                 enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
- *                 description: Blood group
+ *                 description: Blood group (optional)
  *                 example: "O+"
  *               emergencyContact:
  *                 type: string
- *                 description: Emergency contact number
+ *                 description: Emergency contact number (optional)
  *                 example: "+919876543210"
  *     responses:
  *       201:
