@@ -150,6 +150,74 @@ const getAdmissionDetails = asyncHandler(async (req, res) => {
   res.status(result.statusCode).json(result);
 });
 
+// Get all admitted students list
+const getAdmittedStudents = asyncHandler(async (req, res) => {
+  try {
+    const StudentProfile = require('../models/StudentProfile');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const classId = req.query.classId || '';
+    const sectionId = req.query.sectionId || '';
+    const academicYearId = req.query.academicYearId || '';
+
+    // Build query
+    const query = { schoolId: req.user.schoolId, isActive: true };
+
+    // Add search filter
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { admissionNumber: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Get students with population
+    const students = await StudentProfile.find(query)
+      .populate('userId', 'name email role')
+      .populate('parentUserId', 'name email phone')
+      .populate({
+        path: 'currentEnrollment',
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'sectionId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Get total count
+    const total = await StudentProfile.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: students,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to get admitted students', {
+      error: error.message,
+      schoolId: req.user.schoolId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get students list'
+    });
+  }
+});
+
 // Get admission form data (dropdowns, etc.)
 const getAdmissionFormData = asyncHandler(async (req, res) => {
   try {
@@ -186,6 +254,7 @@ const getAdmissionFormData = asyncHandler(async (req, res) => {
 module.exports = {
   admitStudent,
   getAdmissionDetails,
+  getAdmittedStudents,
   getAdmissionFormData,
   validateAdmission
 };

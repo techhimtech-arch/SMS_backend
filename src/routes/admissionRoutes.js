@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   admitStudent,
   getAdmissionDetails,
+  getAdmittedStudents,
   getAdmissionFormData,
   validateAdmission
 } = require('../controllers/admissionController');
@@ -33,6 +34,40 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
  *         description: Unauthorized
  */
 router.get('/form-data', authMiddleware, authorizeRoles('school_admin', 'teacher'), getAdmissionFormData);
+
+/**
+ * @swagger
+ * /admission:
+ *   get:
+ *     summary: Get all admitted students list
+ *     tags: [Admission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of students per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or admission number
+ *     responses:
+ *       200:
+ *         description: Students list retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/', authMiddleware, authorizeRoles('school_admin', 'teacher'), getAdmittedStudents);
 
 /**
  * @swagger
