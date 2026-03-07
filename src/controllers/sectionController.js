@@ -5,7 +5,7 @@ const asyncHandler = require('express-async-handler');
 
 // Create a new section
 const createSection = asyncHandler(async (req, res) => {
-  const { name, classId } = req.body;
+  const { name, classId, capacity, roomNumber, floor, building } = req.body;
 
   // Validate classId belongs to the same school
   const classData = await Class.findOne({ _id: classId, schoolId: req.user.schoolId });
@@ -13,12 +13,20 @@ const createSection = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid classId or unauthorized' });
   }
 
-  // Create section
-  const section = await Section.create({
+  // Create section with all fields
+  const sectionData = {
     name,
     classId,
     schoolId: req.user.schoolId,
-  });
+  };
+
+  // Add optional fields if provided
+  if (capacity !== undefined) sectionData.capacity = capacity;
+  if (roomNumber) sectionData.roomNumber = roomNumber;
+  if (floor) sectionData.floor = floor;
+  if (building) sectionData.building = building;
+
+  const section = await Section.create(sectionData);
 
   res.status(201).json({
     success: true,
@@ -58,11 +66,18 @@ const getSectionsByClass = asyncHandler(async (req, res) => {
 // Update a section
 const updateSection = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name } = req.body;
+  const { name, capacity, roomNumber, floor, building } = req.body;
+
+  const updateData = {};
+  if (name !== undefined) updateData.name = name;
+  if (capacity !== undefined) updateData.capacity = capacity;
+  if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
+  if (floor !== undefined) updateData.floor = floor;
+  if (building !== undefined) updateData.building = building;
 
   const section = await Section.findOneAndUpdate(
     { _id: id, schoolId: req.user.schoolId },
-    { name },
+    updateData,
     { new: true }
   );
 

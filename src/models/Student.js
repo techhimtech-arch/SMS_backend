@@ -24,15 +24,14 @@ const studentSchema = new mongoose.Schema(
     dateOfBirth: {
       type: Date,
     },
+    // Keep classId/sectionId for backward compatibility (will be deprecated)
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Class',
-      required: true,
     },
     sectionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Section',
-      required: true,
     },
     parentName: {
       type: String,
@@ -75,5 +74,20 @@ studentSchema.index({ admissionNumber: 1, schoolId: 1 }, { unique: true });
 
 // Compound index to ensure unique rollNumber per section per school
 studentSchema.index({ rollNumber: 1, sectionId: 1, schoolId: 1 }, { unique: true, sparse: true });
+
+// Virtual for current enrollment
+studentSchema.virtual('currentEnrollment', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'studentId',
+  justOne: true,
+  match: { status: 'enrolled' }
+});
+
+// Static method to get current enrollment
+studentSchema.statics.getCurrentEnrollment = async function(studentId, schoolId) {
+  const Enrollment = mongoose.model('Enrollment');
+  return Enrollment.getCurrentEnrollment(studentId, schoolId);
+};
 
 module.exports = mongoose.model('Student', studentSchema);

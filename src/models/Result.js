@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 
 const resultSchema = new mongoose.Schema(
   {
+    enrollmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Enrollment',
+      required: true,
+    },
+    // Keep studentId for backward compatibility
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Student',
@@ -20,6 +26,11 @@ const resultSchema = new mongoose.Schema(
     schoolId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'School',
+      required: true,
+    },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
       required: true,
     },
     marksObtained: {
@@ -46,6 +57,9 @@ const resultSchema = new mongoose.Schema(
   }
 );
 
-resultSchema.index({ studentId: 1, examId: 1, subjectId: 1, schoolId: 1 }, { unique: true });
+// Updated indexes for enrollment-based queries
+resultSchema.index({ enrollmentId: 1, examId: 1, subjectId: 1, schoolId: 1 }, { unique: true });
+resultSchema.index({ studentId: 1, examId: 1, subjectId: 1, schoolId: 1 }, { unique: true, sparse: true }); // Legacy support
+resultSchema.index({ academicYearId: 1, classId: 1, examId: 1 });
 
 module.exports = mongoose.model('Result', resultSchema);

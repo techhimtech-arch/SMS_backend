@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 
 const studentFeeSchema = new mongoose.Schema(
   {
+    enrollmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Enrollment',
+      required: true,
+    },
+    // Keep studentId for backward compatibility
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Student',
@@ -12,8 +18,9 @@ const studentFeeSchema = new mongoose.Schema(
       ref: 'School',
       required: true,
     },
-    academicYear: {
-      type: String,
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
       required: true,
     },
     totalAmount: {
@@ -33,5 +40,9 @@ const studentFeeSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Updated indexes for enrollment-based queries
+studentFeeSchema.index({ enrollmentId: 1, academicYearId: 1, schoolId: 1 }, { unique: true });
+studentFeeSchema.index({ studentId: 1, academicYearId: 1, schoolId: 1 }, { unique: true, sparse: true }); // Legacy support
 
 module.exports = mongoose.model('StudentFee', studentFeeSchema);

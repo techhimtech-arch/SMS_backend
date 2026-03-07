@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 
 const attendanceSchema = new mongoose.Schema(
   {
+    enrollmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Enrollment',
+      required: true,
+    },
+    // Keep studentId for backward compatibility and direct queries
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Student',
@@ -32,6 +38,11 @@ const attendanceSchema = new mongoose.Schema(
       ref: 'School',
       required: true,
     },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
+      required: true,
+    },
     date: {
       type: Date,
       required: true,
@@ -51,6 +62,9 @@ const attendanceSchema = new mongoose.Schema(
   }
 );
 
-attendanceSchema.index({ studentId: 1, date: 1, schoolId: 1 }, { unique: true });
+// Updated indexes for enrollment-based queries
+attendanceSchema.index({ enrollmentId: 1, date: 1, schoolId: 1 }, { unique: true });
+attendanceSchema.index({ studentId: 1, date: 1, schoolId: 1 }, { unique: true, sparse: true }); // Legacy support
+attendanceSchema.index({ academicYearId: 1, classId: 1, sectionId: 1, date: 1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);
