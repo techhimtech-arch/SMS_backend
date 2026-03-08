@@ -109,6 +109,17 @@ const markAttendance = asyncHandler(async (req, res) => {
     req.user.schoolId
   );
 
+  // Debug log to check result
+  logger.info('Service result:', { result });
+
+  // Handle result safely
+  if (!result) {
+    return res.status(500).json({
+      success: false,
+      message: 'Service returned no result'
+    });
+  }
+
   res.status(result.success ? 201 : 400).json(result);
 });
 

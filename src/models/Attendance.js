@@ -10,8 +10,8 @@ const attendanceSchema = new mongoose.Schema(
     // Keep studentId for backward compatibility and direct queries
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Student',
-      required: true,
+      ref: 'StudentProfile',
+      required: false, // Made optional since enrollmentId is primary
     },
     classId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -49,7 +49,7 @@ const attendanceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Present', 'Absent', 'Leave'],
+      enum: ['Present', 'Absent', 'Leave', 'Late'],
       required: true,
     },
     markedBy: {

@@ -108,6 +108,8 @@ class EnrollmentAttendanceService {
     const session = await mongoose.startSession();
     
     try {
+      let transactionResult;
+      
       await session.withTransaction(async () => {
         const { academicYearId, classId, sectionId, date, attendanceRecords } = attendanceData;
         
@@ -124,6 +126,18 @@ class EnrollmentAttendanceService {
           schoolId
         }).session(session);
 
+        // Get enrollments to fetch studentId for each attendance record
+        const enrollmentIds = attendanceRecords.map(record => record.enrollmentId);
+        const enrollments = await Enrollment.find({
+          _id: { $in: enrollmentIds },
+          schoolId
+        }).select('studentId').session(session);
+
+        const enrollmentStudentMap = new Map();
+        enrollments.forEach(enrollment => {
+          enrollmentStudentMap.set(enrollment._id.toString(), enrollment.studentId);
+        });
+
         const existingAttendanceMap = new Map();
         existingAttendance.forEach(record => {
           existingAttendanceMap.set(record.enrollmentId.toString(), record);
@@ -134,18 +148,13 @@ class EnrollmentAttendanceService {
 
         for (const record of attendanceRecords) {
           const { enrollmentId, status } = record;
-          
-          // Validate status
-          if (!['Present', 'Absent', 'Leave', 'Late'].includes(status)) {
-            throw new Error(`Invalid status: ${status}. Must be Present, Absent, Leave, or Late`);
-          }
+          // markedBy is already passed as parameter
 
-          const existingRecord = existingAttendanceMap.get(enrollmentId);
-          
+          // Check if attendance already exists for this enrollment
+          const existingRecord = existingAttendanceMap.get(enrollmentId.toString());
+
           if (existingRecord) {
-            // Update existing attendance
-            existingRecord.status = status;
-            existingRecord.markedBy = markedBy;
+            // Update existing attendance record
             attendanceOperations.push({
               updateOne: {
                 filter: { _id: existingRecord._id },
@@ -167,10 +176,10 @@ class EnrollmentAttendanceService {
               insertOne: {
                 document: {
                   enrollmentId,
-                  studentId: record.studentId, // Keep for backward compatibility
+                  studentId: enrollmentStudentMap.get(enrollmentId.toString()), // Add studentId
+                  academicYearId,
                   classId,
                   sectionId,
-                  academicYearId,
                   schoolId,
                   date: attendanceDate,
                   status,
@@ -181,10 +190,10 @@ class EnrollmentAttendanceService {
             });
             updatedRecords.push({
               enrollmentId,
-              studentId: record.studentId,
+              studentId: enrollmentStudentMap.get(enrollmentId.toString()), // Add studentId
+              academicYearId,
               classId,
               sectionId,
-              academicYearId,
               schoolId,
               date: attendanceDate,
               status,
@@ -209,13 +218,19 @@ class EnrollmentAttendanceService {
           schoolId
         });
 
-        return {
+        // Store the result in the outer scope variable
+        transactionResult = {
           success: true,
           message: 'Attendance marked successfully',
           data: updatedRecords,
           totalMarked: attendanceOperations.length
         };
+
+        logger.info('About to return result from transaction:', { transactionResult });
       });
+
+      logger.info('Transaction completed, returning result:', { transactionResult });
+      return transactionResult;
 
     } catch (error) {
       logger.error('Failed to mark attendance', {
@@ -225,7 +240,10 @@ class EnrollmentAttendanceService {
         schoolId
       });
       
-      await session.abortTransaction();
+      // Only abort if session is active
+      if (session && session.inTransaction()) {
+        await session.abortTransaction();
+      }
       
       return {
         success: false,
