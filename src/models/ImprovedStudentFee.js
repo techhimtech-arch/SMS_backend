@@ -10,7 +10,7 @@ const improvedStudentFeeSchema = new mongoose.Schema(
     // Keep studentId for backward compatibility
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Student',
+      ref: 'StudentProfile',
       required: true,
     },
     feeStructureId: {

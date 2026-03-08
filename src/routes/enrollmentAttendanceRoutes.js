@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {
   getEnrollmentsForAttendance,
+  getAllEnrollmentsForAcademicYear,
   markAttendance,
   getAttendanceByEnrollment,
   getClassAttendanceSummary,
@@ -44,10 +45,10 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
  *         description: Class ID
  *       - in: query
  *         name: sectionId
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
- *         description: Section ID
+ *         description: Section ID (optional - if not provided, returns all sections of the class)
  *     responses:
  *       200:
  *         description: Enrollments retrieved successfully
@@ -57,6 +58,75 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
  *         description: Unauthorized
  */
 router.get('/enrollments', authMiddleware, authorizeRoles('school_admin', 'teacher'), getEnrollmentsForAttendance);
+
+/**
+ * @swagger
+ * /attendance/all-enrollments:
+ *   get:
+ *     summary: Get all enrollments for an academic year (all classes)
+ *     tags: [Enrollment Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Academic year ID
+ *     responses:
+ *       200:
+ *         description: All enrollments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalEnrollments:
+ *                       type: integer
+ *                       example: 150
+ *                     enrollmentsByClass:
+ *                       type: object
+ *                       example:
+ *                         "6th Grade":
+ *                           - enrollmentId: "enroll_1"
+ *                             studentName: "Rahul Sharma"
+ *                             className: "6th Grade"
+ *                             sectionName: "A"
+ *                             rollNumber: 1
+ *                         "7th Grade":
+ *                           - enrollmentId: "enroll_2"
+ *                             studentName: "Priya Patel"
+ *                             className: "7th Grade"
+ *                             sectionName: "B"
+ *                             rollNumber: 2
+ *                     allEnrollments:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           enrollmentId:
+ *                             type: string
+ *                           studentName:
+ *                             type: string
+ *                           className:
+ *                             type: string
+ *                           sectionName:
+ *                             type: string
+ *                           rollNumber:
+ *                             type: integer
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/all-enrollments', authMiddleware, authorizeRoles('school_admin', 'teacher'), getAllEnrollmentsForAcademicYear);
 
 /**
  * @swagger

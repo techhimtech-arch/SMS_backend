@@ -49,10 +49,10 @@ const getEnrollmentsForAttendance = asyncHandler(async (req, res) => {
   const { academicYearId, classId, sectionId } = req.query;
   const { schoolId } = req.user;
 
-  if (!academicYearId || !classId || !sectionId) {
+  if (!academicYearId) {
     return res.status(400).json({
       success: false,
-      message: 'Academic year, class, and section are required'
+      message: 'Academic year is required'
     });
   }
 
@@ -60,6 +60,26 @@ const getEnrollmentsForAttendance = asyncHandler(async (req, res) => {
     academicYearId,
     classId,
     sectionId,
+    schoolId
+  );
+
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+// Get all enrollments for an academic year (all classes)
+const getAllEnrollmentsForAcademicYear = asyncHandler(async (req, res) => {
+  const { academicYearId } = req.query;
+  const { schoolId } = req.user;
+
+  if (!academicYearId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Academic year is required'
+    });
+  }
+
+  const result = await enrollmentAttendanceService.getAllEnrollmentsForAcademicYear(
+    academicYearId,
     schoolId
   );
 
@@ -199,6 +219,7 @@ const getAttendanceDashboard = asyncHandler(async (req, res) => {
 
 module.exports = {
   getEnrollmentsForAttendance,
+  getAllEnrollmentsForAcademicYear,
   markAttendance,
   getAttendanceByEnrollment,
   getClassAttendanceSummary,

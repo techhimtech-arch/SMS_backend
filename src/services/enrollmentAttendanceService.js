@@ -9,17 +9,28 @@ class EnrollmentAttendanceService {
    */
   async getEnrollmentsForAttendance(academicYearId, classId, sectionId, schoolId) {
     try {
-      const enrollments = await Enrollment.find({
+      // Build query object
+      const query = {
         academicYearId,
-        classId,
-        sectionId,
         schoolId,
         status: 'enrolled'
-      })
-      .populate('studentId', 'firstName lastName admissionNumber')
-      .populate('classId', 'name')
-      .populate('sectionId', 'name')
-      .sort({ rollNumber: 1 });
+      };
+      
+      // Add classId only if provided
+      if (classId) {
+        query.classId = classId;
+      }
+      
+      // Add sectionId only if provided
+      if (sectionId) {
+        query.sectionId = sectionId;
+      }
+      
+      const enrollments = await Enrollment.find(query)
+        .populate('studentId', 'firstName lastName admissionNumber')
+        .populate('classId', 'name')
+        .populate('sectionId', 'name')
+        .sort({ classId: 1, sectionId: 1, rollNumber: 1 });
 
       return {
         success: true,
@@ -37,6 +48,54 @@ class EnrollmentAttendanceService {
       return {
         success: false,
         message: 'Failed to get enrollments for attendance',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get all enrollments for an academic year (all classes)
+   */
+  async getAllEnrollmentsForAcademicYear(academicYearId, schoolId) {
+    try {
+      const enrollments = await Enrollment.find({
+        academicYearId,
+        schoolId,
+        status: 'enrolled'
+      })
+      .populate('studentId', 'firstName lastName admissionNumber')
+      .populate('classId', 'name')
+      .populate('sectionId', 'name')
+      .sort({ classId: 1, sectionId: 1, rollNumber: 1 });
+
+      // Group by class for better organization
+      const groupedByClass = enrollments.reduce((acc, enrollment) => {
+        const className = enrollment.classId?.name || 'Unknown Class';
+        if (!acc[className]) {
+          acc[className] = [];
+        }
+        acc[className].push(enrollment);
+        return acc;
+      }, {});
+
+      return {
+        success: true,
+        data: {
+          totalEnrollments: enrollments.length,
+          enrollmentsByClass: groupedByClass,
+          allEnrollments: enrollments
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get all enrollments for academic year', {
+        error: error.message,
+        academicYearId,
+        schoolId
+      });
+      
+      return {
+        success: false,
+        message: 'Failed to get all enrollments for academic year',
         error: error.message
       };
     }

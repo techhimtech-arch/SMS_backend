@@ -141,7 +141,7 @@ app.use('/api/v1/sections', sectionRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/admission', admissionRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
-app.use('/api/v1/attendance', enrollmentAttendanceRoutes);
+app.use('/api/v1/attendance/enrollments', enrollmentAttendanceRoutes);
 app.use('/api/v1/fees', feesRoutes);
 app.use('/api/v1/results', examsResultsRoutes);
 app.use('/api/v1/parents', parentRoutes);
