@@ -22,6 +22,27 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
  *   description: Enrollment-based attendance management
  */
 
+// Put all-enrollments first to avoid conflicts
+router.get('/all-enrollments', authMiddleware, authorizeRoles('school_admin', 'teacher'), getAllEnrollmentsForAcademicYear);
+
+// Debug route to test if service loads
+router.get('/debug-test', (req, res) => {
+  try {
+    const service = require('../services/enrollmentAttendanceService');
+    res.json({
+      success: true,
+      message: 'Service loaded successfully',
+      serviceMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(service))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Service loading failed',
+      error: error.message
+    });
+  }
+});
+
 /**
  * @swagger
  * /attendance/enrollments:
@@ -366,5 +387,25 @@ router.get('/class-statistics', authMiddleware, authorizeRoles('school_admin', '
  *         description: Unauthorized
  */
 router.get('/dashboard', authMiddleware, authorizeRoles('school_admin', 'teacher', 'parent'), getAttendanceDashboard);
+
+// Debug route to test if service loads
+router.get('/debug-test', (req, res) => {
+  try {
+    const service = require('../services/enrollmentAttendanceService');
+    res.json({
+      success: true,
+      message: 'Service loaded successfully',
+      serviceMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(service))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Service loading failed',
+      error: error.message
+    });
+  }
+});
+
+router.get('/all-enrollments', authMiddleware, authorizeRoles('school_admin', 'teacher'), getAllEnrollmentsForAcademicYear);
 
 module.exports = router;
