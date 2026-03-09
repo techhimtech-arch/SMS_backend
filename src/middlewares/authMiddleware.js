@@ -17,14 +17,20 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid token: Missing schoolId' });
     }
 
-    // Attach user info to req.user
-    req.user = decoded;
-
     // Optional: Verify user exists in the database
     const user = await User.findById(decoded.userId);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid token' });
     }
+
+    // Attach user info to req.user (merge decoded token with user data)
+    req.user = {
+      ...decoded,
+      id: decoded.userId, // Add id field for compatibility
+      name: user.name, // Use name from database
+      email: user.email,
+      role: user.role
+    };
 
     next();
   } catch (error) {

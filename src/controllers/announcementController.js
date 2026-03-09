@@ -37,6 +37,13 @@ const createAnnouncement = asyncHandler(async (req, res) => {
     });
   }
 
+  // Debug: Log user info
+  logger.info('Creating announcement', {
+    user: req.user,
+    userId: req.user?.id,
+    userName: req.user?.name
+  });
+
   // Validate target audience
   if (targetAudience.includes('specific_classes') && (!targetClasses || targetClasses.length === 0)) {
     return res.status(400).json({
@@ -83,7 +90,7 @@ const createAnnouncement = asyncHandler(async (req, res) => {
       email: deliveryMethods?.email || false,
       sms: deliveryMethods?.sms || false,
       push: deliveryMethods?.push !== false,
-      dashboard: deliveryMethods?.dashboard !== false
+      dashboard: deliveryMethods?.dashboard !== false || deliveryMethods?.portal !== false
     },
     tags: tags || [],
     allowComments: allowComments || false,
@@ -94,7 +101,7 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 
   // Log audit
   await auditLogger.log({
-    action: 'CREATE_ANNOUNCEMENT',
+    action: 'ANNOUNCEMENT_CREATE',
     userId: req.user.id,
     userType: req.user.role,
     targetId: savedAnnouncement._id,
@@ -134,18 +141,23 @@ const getAnnouncements = asyncHandler(async (req, res) => {
   // Build query
   const query = {};
 
-  // Filter by status
-  if (status) {
+  // If no status filter is provided, default to published announcements
+  if (!status) {
+    query.status = 'published';
+  }
+
+  // Filter by status (don't filter if status is "all")
+  if (status && status !== 'all') {
     query.status = status;
   }
 
-  // Filter by type
-  if (type) {
+  // Filter by type (don't filter if type is "all")
+  if (type && type !== 'all') {
     query.type = type;
   }
 
-  // Filter by priority
-  if (priority) {
+  // Filter by priority (don't filter if priority is "all")
+  if (priority && priority !== 'all') {
     query.priority = priority;
   }
 
@@ -344,7 +356,7 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
 
   // Log audit
   await auditLogger.log({
-    action: 'UPDATE_ANNOUNCEMENT',
+    action: 'ANNOUNCEMENT_UPDATE',
     userId: req.user.id,
     userType: req.user.role,
     targetId: announcement._id,
@@ -387,7 +399,7 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
 
   // Log audit
   await auditLogger.log({
-    action: 'DELETE_ANNOUNCEMENT',
+    action: 'ANNOUNCEMENT_DELETE',
     userId: req.user.id,
     userType: req.user.role,
     targetId: announcement._id,
