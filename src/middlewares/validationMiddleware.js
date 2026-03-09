@@ -358,11 +358,181 @@ const validations = {
         }
         return true;
       })
+  ],
+
+  // Announcement validations
+  createAnnouncement: [
+    body('title')
+      .trim()
+      .notEmpty()
+      .withMessage('Announcement title is required')
+      .isLength({ min: 3, max: 200 })
+      .withMessage('Title must be between 3 and 200 characters')
+      .escape(),
+    body('content')
+      .trim()
+      .notEmpty()
+      .withMessage('Announcement content is required')
+      .isLength({ min: 10, max: 5000 })
+      .withMessage('Content must be between 10 and 5000 characters')
+      .escape(),
+    body('type')
+      .optional()
+      .isIn(['general', 'academic', 'sports', 'events', 'emergency', 'examination', 'holiday'])
+      .withMessage('Invalid announcement type'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'medium', 'high', 'urgent'])
+      .withMessage('Invalid priority level'),
+    body('targetAudience')
+      .isArray({ min: 1 })
+      .withMessage('Target audience is required and must be an array'),
+    body('targetAudience.*')
+      .isIn(['all', 'students', 'teachers', 'parents', 'admin', 'specific_classes', 'specific_sections'])
+      .withMessage('Invalid target audience option'),
+    body('targetClasses')
+      .optional()
+      .isArray()
+      .withMessage('Target classes must be an array'),
+    body('targetClasses.*.classId')
+      .optional()
+      .isMongoId()
+      .withMessage('Invalid class ID format'),
+    body('targetSections')
+      .optional()
+      .isArray()
+      .withMessage('Target sections must be an array'),
+    body('targetSections.*.sectionId')
+      .optional()
+      .isMongoId()
+      .withMessage('Invalid section ID format'),
+    body('targetUsers')
+      .optional()
+      .isArray()
+      .withMessage('Target users must be an array'),
+    body('targetUsers.*.userId')
+      .optional()
+      .isMongoId()
+      .withMessage('Invalid user ID format'),
+    body('expiryDate')
+      .optional()
+      .isISO8601()
+      .withMessage('Expiry date must be a valid date')
+      .custom((value) => {
+        if (value && new Date(value) <= new Date()) {
+          throw new Error('Expiry date must be in the future');
+        }
+        return true;
+      }),
+    body('scheduledDate')
+      .optional()
+      .isISO8601()
+      .withMessage('Scheduled date must be a valid date')
+      .custom((value) => {
+        if (value && new Date(value) <= new Date()) {
+          throw new Error('Scheduled date must be in the future');
+        }
+        return true;
+      }),
+    body('deliveryMethods.email')
+      .optional()
+      .isBoolean()
+      .withMessage('Email delivery method must be boolean'),
+    body('deliveryMethods.sms')
+      .optional()
+      .isBoolean()
+      .withMessage('SMS delivery method must be boolean'),
+    body('deliveryMethods.push')
+      .optional()
+      .isBoolean()
+      .withMessage('Push delivery method must be boolean'),
+    body('deliveryMethods.dashboard')
+      .optional()
+      .isBoolean()
+      .withMessage('Dashboard delivery method must be boolean'),
+    body('tags')
+      .optional()
+      .isArray()
+      .withMessage('Tags must be an array'),
+    body('tags.*')
+      .optional()
+      .trim()
+      .isLength({ min: 1, max: 30 })
+      .withMessage('Each tag must be between 1 and 30 characters')
+      .escape(),
+    body('allowComments')
+      .optional()
+      .isBoolean()
+      .withMessage('Allow comments must be boolean'),
+    body('isPinned')
+      .optional()
+      .isBoolean()
+      .withMessage('Is pinned must be boolean')
+  ],
+
+  updateAnnouncement: [
+    body('title')
+      .optional()
+      .trim()
+      .isLength({ min: 3, max: 200 })
+      .withMessage('Title must be between 3 and 200 characters')
+      .escape(),
+    body('content')
+      .optional()
+      .trim()
+      .isLength({ min: 10, max: 5000 })
+      .withMessage('Content must be between 10 and 5000 characters')
+      .escape(),
+    body('type')
+      .optional()
+      .isIn(['general', 'academic', 'sports', 'events', 'emergency', 'examination', 'holiday'])
+      .withMessage('Invalid announcement type'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'medium', 'high', 'urgent'])
+      .withMessage('Invalid priority level'),
+    body('targetAudience')
+      .optional()
+      .isArray({ min: 1 })
+      .withMessage('Target audience must be an array with at least 1 item'),
+    body('expiryDate')
+      .optional()
+      .isISO8601()
+      .withMessage('Expiry date must be a valid date'),
+    body('scheduledDate')
+      .optional()
+      .isISO8601()
+      .withMessage('Scheduled date must be a valid date'),
+    body('tags')
+      .optional()
+      .isArray()
+      .withMessage('Tags must be an array'),
+    body('allowComments')
+      .optional()
+      .isBoolean()
+      .withMessage('Allow comments must be boolean'),
+    body('isPinned')
+      .optional()
+      .isBoolean()
+      .withMessage('Is pinned must be boolean')
+  ],
+
+  addComment: [
+    body('comment')
+      .trim()
+      .notEmpty()
+      .withMessage('Comment is required')
+      .isLength({ min: 1, max: 1000 })
+      .withMessage('Comment must be between 1 and 1000 characters')
+      .escape()
   ]
 };
 
 module.exports = {
   handleValidationErrors,
   commonValidations,
-  validations
+  validations,
+  validateAnnouncement: [validations.createAnnouncement, handleValidationErrors],
+  validateAnnouncementUpdate: [validations.updateAnnouncement, handleValidationErrors],
+  validateComment: [validations.addComment, handleValidationErrors]
 };
