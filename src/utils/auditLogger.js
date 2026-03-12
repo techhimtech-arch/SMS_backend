@@ -8,6 +8,7 @@ class AuditLogger {
    * @param {string} auditData.action - Action performed
    * @param {string} auditData.userId - User ID who performed the action
    * @param {string} auditData.userType - User type (role)
+   * @param {string} auditData.schoolId - School ID
    * @param {string} auditData.targetId - Target entity ID
    * @param {string} auditData.targetType - Target entity type
    * @param {Object} auditData.details - Additional details
@@ -20,6 +21,7 @@ class AuditLogger {
         action: auditData.action,
         userId: auditData.userId,
         userType: auditData.userType,
+        schoolId: auditData.schoolId,
         targetId: auditData.targetId,
         targetType: auditData.targetType,
         details: auditData.details || {},

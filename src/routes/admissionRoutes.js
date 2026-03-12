@@ -2,11 +2,15 @@ const express = require('express');
 const router = express.Router();
 
 const {
+  createPartialAdmission,
+  completeAdmission,
+  getPartialAdmissions,
   admitStudent,
   getAdmissionDetails,
   getAdmittedStudents,
   getAdmissionFormData,
-  validateAdmission
+  validateAdmission,
+  validatePartialAdmission
 } = require('../controllers/admissionController');
 
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -18,6 +22,152 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
  *   name: Admission
  *   description: Student admission management routes
  */
+
+/**
+ * @swagger
+ * /admission/partial:
+ *   post:
+ *     summary: Create partial admission (basic info only)
+ *     tags: [Admission]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - gender
+ *               - dateOfBirth
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 description: Student's first name
+ *                 example: "Rahul"
+ *               lastName:
+ *                 type: string
+ *                 description: Student's last name
+ *                 example: "Sharma"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Student's email
+ *                 example: "student@example.com"
+ *               phone:
+ *                 type: string
+ *                 description: Student's phone number
+ *                 example: "1234567890"
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Student's gender
+ *                 example: "Male"
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *                 description: Student's date of birth
+ *                 example: "2012-05-10"
+ *               address:
+ *                 type: string
+ *                 description: Student's address
+ *                 example: "123 Main St, City"
+ *     responses:
+ *       201:
+ *         description: Partial admission created successfully
+ *       400:
+ *         description: Validation failed
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/partial', authMiddleware, authorizeRoles('school_admin', 'teacher'), validatePartialAdmission, createPartialAdmission);
+
+/**
+ * @swagger
+ * /admission/partial:
+ *   get:
+ *     summary: Get all partial admissions
+ *     tags: [Admission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *           description: Search by name or email
+ *     responses:
+ *       200:
+ *         description: Partial admissions retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/partial', authMiddleware, authorizeRoles('school_admin', 'teacher'), getPartialAdmissions);
+
+/**
+ * @swagger
+ * /admission/{studentId}/complete:
+ *   put:
+ *     summary: Complete partial admission
+ *     tags: [Admission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Student ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               classId:
+ *                 type: string
+ *                 description: Class ID to assign
+ *               sectionId:
+ *                 type: string
+ *                 description: Section ID to assign
+ *               parentUserId:
+ *                 type: string
+ *                 description: Parent user ID
+ *               rollNumber:
+ *                 type: string
+ *                 description: Roll number
+ *               bloodGroup:
+ *                 type: string
+ *                 enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+ *                 description: Blood group
+ *               admissionNumber:
+ *                 type: string
+ *                 description: Admission number
+ *     responses:
+ *       200:
+ *         description: Admission completed successfully
+ *       400:
+ *         description: Validation failed
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Student not found
+ */
+router.put('/:studentId/complete', authMiddleware, authorizeRoles('school_admin', 'teacher'), validateAdmission, completeAdmission);
 
 /**
  * @swagger

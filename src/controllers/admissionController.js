@@ -4,6 +4,59 @@ const admissionService = require('../services/admissionService');
 const AcademicYear = require('../models/AcademicYear');
 const logger = require('../utils/logger');
 
+// Validation middleware for partial admission (basic info only)
+const validatePartialAdmission = [
+  body('firstName')
+    .trim()
+    .notEmpty()
+    .withMessage('First name is required')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('First name must be between 2 and 50 characters'),
+  
+  body('lastName')
+    .trim()
+    .notEmpty()
+    .withMessage('Last name is required')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Last name must be between 2 and 50 characters'),
+  
+  body('email')
+    .optional()
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail(),
+  
+  body('phone')
+    .optional()
+    .isMobilePhone('any')
+    .withMessage('Invalid phone number'),
+  
+  body('dateOfBirth')
+    .isISO8601()
+    .withMessage('Date of birth must be a valid date')
+    .custom((value) => {
+      const age = new Date().getFullYear() - new Date(value).getFullYear();
+      if (age < 5 || age > 25) {
+        throw new Error('Student age must be between 5 and 25 years');
+      }
+      return true;
+    }),
+  
+  body('gender')
+    .isIn(['Male', 'Female', 'Other'])
+    .withMessage('Gender must be Male, Female, or Other'),
+  
+  body('address')
+    .optional()
+    .isLength({ max: 200 })
+    .withMessage('Address must not exceed 200 characters'),
+  
+  body('emergencyContact')
+    .optional()
+    .isMobilePhone('any')
+    .withMessage('Invalid emergency contact number')
+];
+
 // Validation middleware for admission
 const validateAdmission = [
   body('firstName')
@@ -96,6 +149,168 @@ const validateAdmission = [
     .isMobilePhone('any')
     .withMessage('Invalid emergency contact number')
 ];
+
+// Partial admission - basic info only
+const createPartialAdmission = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    dateOfBirth,
+    gender,
+    address,
+    emergencyContact
+  } = req.body;
+
+  try {
+    // Create partial admission record
+    const admissionData = {
+      firstName,
+      lastName,
+      email,
+      phone,
+      dateOfBirth,
+      gender,
+      address,
+      emergencyContact,
+      schoolId: req.user.schoolId,
+      status: 'partial', // Mark as partial admission
+      admittedBy: req.user._id,
+      admissionDate: new Date()
+    };
+
+    const result = await admissionService.createPartialAdmission(
+      admissionData,
+      req.user.schoolId,
+      req.user._id
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Partial admission created successfully. Complete admission by adding class, section, and parent details.',
+      data: result
+    });
+
+  } catch (error) {
+    logger.error('Failed to create partial admission', {
+      error: error.message,
+      schoolId: req.user.schoolId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create partial admission'
+    });
+  }
+});
+
+// Complete admission - update partial admission
+const completeAdmission = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+
+  const { studentId } = req.params;
+  const {
+    classId,
+    sectionId,
+    parentUserId,
+    rollNumber,
+    bloodGroup,
+    admissionNumber
+  } = req.body;
+
+  try {
+    const updateData = {
+      classId,
+      sectionId,
+      parentUserId,
+      rollNumber,
+      bloodGroup,
+      admissionNumber,
+      status: 'completed', // Mark as completed
+      completedAt: new Date(),
+      completedBy: req.user._id
+    };
+
+    const result = await admissionService.completeAdmission(
+      studentId,
+      updateData,
+      req.user.schoolId,
+      req.user._id
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Admission completed successfully',
+      data: result
+    });
+
+  } catch (error) {
+    logger.error('Failed to complete admission', {
+      error: error.message,
+      schoolId: req.user.schoolId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete admission'
+    });
+  }
+});
+
+// Get partial admissions
+const getPartialAdmissions = asyncHandler(async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+
+    const result = await admissionService.getPartialAdmissions(
+      req.user.schoolId,
+      page,
+      limit,
+      search
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.admissions,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        pages: Math.ceil(result.total / limit)
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to get partial admissions', {
+      error: error.message,
+      schoolId: req.user.schoolId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get partial admissions'
+    });
+  }
+});
 
 // Admit new student (complete flow)
 const admitStudent = asyncHandler(async (req, res) => {
@@ -252,9 +467,13 @@ const getAdmissionFormData = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  createPartialAdmission,
+  completeAdmission,
+  getPartialAdmissions,
   admitStudent,
   getAdmissionDetails,
   getAdmittedStudents,
   getAdmissionFormData,
-  validateAdmission
+  validateAdmission,
+  validatePartialAdmission
 };
