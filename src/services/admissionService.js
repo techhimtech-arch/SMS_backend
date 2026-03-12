@@ -205,7 +205,7 @@ const createPartialAdmission = async (admissionData, schoolId, adminId) => {
 
     return {
       success: true,
-      message: 'Partial admission created successfully',
+      message: 'Partial admission created successfully. Parent details can be added later during completion.',
       data: {
         user,
         profile

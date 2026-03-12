@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const Student = require('../models/Student');
+const StudentProfile = require('../models/StudentProfile');
 const Attendance = require('../models/Attendance');
 const StudentFee = require('../models/StudentFee');
 const FeePayment = require('../models/FeePayment');
@@ -37,7 +37,7 @@ exports.createParent = asyncHandler(async (req, res, next) => {
 
   // If studentId provided, link parent to student
   if (studentId) {
-    const student = await Student.findOne({
+    const student = await StudentProfile.findOne({
       _id: studentId,
       schoolId: req.user.schoolId,
     });
@@ -83,7 +83,7 @@ exports.linkParentToStudent = asyncHandler(async (req, res, next) => {
   }
 
   // Verify student exists and belongs to school
-  const student = await Student.findOne({
+  const student = await StudentProfile.findOne({
     _id: studentId,
     schoolId: req.user.schoolId,
   });
@@ -132,7 +132,7 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   }
 
   // Get linked student info
-  const student = await Student.findOne({
+  const student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   })
@@ -159,7 +159,7 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
   const { startDate, endDate } = req.query;
 
   // Fetch student internally using parentUserId
-  const student = await Student.findOne({
+  const student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   });
@@ -195,7 +195,7 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
 // GET /api/parent/fees - Get linked student's fee details
 exports.getFees = asyncHandler(async (req, res, next) => {
   // Fetch student internally using parentUserId
-  const student = await Student.findOne({
+  const student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   });
@@ -235,7 +235,7 @@ exports.getResults = asyncHandler(async (req, res, next) => {
   const { examId } = req.query;
 
   // Fetch student internally using parentUserId
-  const student = await Student.findOne({
+  const student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   });
