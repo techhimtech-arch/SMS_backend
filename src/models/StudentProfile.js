@@ -27,6 +27,12 @@ const studentProfileSchema = new mongoose.Schema(
     dateOfBirth: {
       type: Date,
     },
+    email: {
+      type: String,
+    },
+    phone: {
+      type: String,
+    },
     parentUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -54,6 +60,22 @@ const studentProfileSchema = new mongoose.Schema(
       default: Date.now,
     },
     createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    status: {
+      type: String,
+      enum: ['partial', 'completed', 'enrolled'],
+      default: 'completed',
+    },
+    admittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    completedAt: {
+      type: Date,
+    },
+    completedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
