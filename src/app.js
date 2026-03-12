@@ -30,6 +30,8 @@ const auditLogRoutes = require('./routes/auditLogRoutes');
 const enrollmentRoutes = require('./routes/enrollmentRoutes');
 // Announcement system routes
 const announcementRoutes = require('./routes/announcementRoutes');
+// Bulk admission system routes
+const bulkAdmissionRoutes = require('./routes/bulkAdmissionRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
@@ -157,6 +159,7 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/audit-logs', auditLogRoutes);
 app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
+app.use('/api/v1/admission/bulk', bulkAdmissionRoutes);
 
 // ===========================================
 // ERROR HANDLING

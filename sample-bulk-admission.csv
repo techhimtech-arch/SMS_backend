@@ -1,0 +1,6 @@
+firstName,lastName,gender,dateOfBirth,email,phone,address,emergencyContact,className,sectionName
+Rahul,Sharma,Male,2015-01-01,rahul@email.com,1234567890,123 Main St,9876543210,Class 1,A
+Priya,Verma,Female,2016-02-15,priya@email.com,9876543210,456 Oak Ave,1234567890,Class 1,B
+Amit,Kumar,Male,2015-03-20,amit@email.com,5551234567,789 Pine Rd,5559876543,Class 2,A
+Sneha,Patel,Female,2016-04-10,sneha@email.com,7778889999,321 Elm St,7776665555,Class 2,B
+Rohit,Singh,Male,2015-05-30,rohit@email.com,9998887777,654 Maple Dr,9997778888,Class 3,A
