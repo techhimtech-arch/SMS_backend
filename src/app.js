@@ -7,7 +7,7 @@ const requestIdMiddleware = require('./middlewares/requestId');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
+const userRoutes = require('./routes/improvedUserRoutes');
 const classRoutes = require('./routes/classRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
 const studentRoutes = require('./routes/studentRoutes');

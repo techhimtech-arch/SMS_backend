@@ -1,7 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const logger = require('../utils/logger');
-const { validations, handleValidationErrors } = require('../middlewares/validationMiddleware');
+const mongoose = require('mongoose');
+const { validations, commonValidations, handleValidationErrors } = require('../middlewares/validationMiddleware');
 
 /**
  * @desc    Create new user
@@ -21,10 +22,12 @@ const createUser = asyncHandler(async (req, res) => {
       });
     }
 
+    // Create name from firstName and lastName
+    const name = `${firstName} ${lastName}`;
+
     // Create user
     const user = await User.create({
-      firstName,
-      lastName,
+      name,
       email,
       password,
       role,
@@ -86,8 +89,7 @@ const getUsers = asyncHandler(async (req, res) => {
 
     if (search) {
       filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ];
     }
@@ -210,7 +212,7 @@ const updateUser = asyncHandler(async (req, res) => {
     }
 
     // Update user fields
-    const allowedUpdates = ['firstName', 'lastName', 'email', 'role'];
+    const allowedUpdates = ['name', 'email', 'role'];
     const updates = {};
     
     allowedUpdates.forEach(field => {
@@ -218,6 +220,18 @@ const updateUser = asyncHandler(async (req, res) => {
         updates[field] = req.body[field];
       }
     });
+
+    // Handle firstName and lastName combination for name field
+    if (req.body.firstName !== undefined || req.body.lastName !== undefined) {
+      const currentUser = await User.findById(req.params.id);
+      const currentName = currentUser.name || '';
+      const nameParts = currentName.split(' ');
+      
+      const firstName = req.body.firstName !== undefined ? req.body.firstName : nameParts[0];
+      const lastName = req.body.lastName !== undefined ? req.body.lastName : nameParts.slice(1).join(' ');
+      
+      updates.name = `${firstName} ${lastName}`.trim();
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
@@ -325,7 +339,7 @@ const getUserStats = asyncHandler(async (req, res) => {
     const schoolId = req.user.schoolId;
 
     const stats = await User.aggregate([
-      { $match: { schoolId: mongoose.Types.ObjectId(schoolId) } },
+      { $match: { schoolId: new mongoose.Types.ObjectId(schoolId) } },
       {
         $group: {
           _id: '$role',
@@ -373,13 +387,13 @@ const getUserStats = asyncHandler(async (req, res) => {
 module.exports = {
   createUser: [validations.createUser, handleValidationErrors, createUser],
   getUsers: [validations.pagination, handleValidationErrors, getUsers],
-  getUserById: [validations.commonValidations.objectId('id'), handleValidationErrors, getUserById],
+  getUserById: [commonValidations.objectId('id'), handleValidationErrors, getUserById],
   updateUser: [
-    validations.commonValidations.objectId('id'),
+    commonValidations.objectId('id'),
     validations.updateUser,
     handleValidationErrors,
     updateUser
   ],
-  deleteUser: [validations.commonValidations.objectId('id'), handleValidationErrors, deleteUser],
+  deleteUser: [commonValidations.objectId('id'), handleValidationErrors, deleteUser],
   getUserStats
 };

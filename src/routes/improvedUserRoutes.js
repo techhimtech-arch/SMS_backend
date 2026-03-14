@@ -225,6 +225,49 @@ router.get('/', authMiddleware, authorizeRoles('school_admin'), getUsers);
 
 /**
  * @swagger
+ * /users/stats:
+ *   get:
+ *     summary: Get user statistics
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalUsers:
+ *                       type: integer
+ *                       example: 150
+ *                     roleBreakdown:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           role:
+ *                             type: string
+ *                             example: "teacher"
+ *                           count:
+ *                             type: integer
+ *                             example: 25
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+router.get('/stats', authMiddleware, authorizeRoles('school_admin'), getUserStats);
+
+/**
+ * @swagger
  * /users/{id}:
  *   get:
  *     summary: Get user by ID
@@ -360,48 +403,5 @@ router.put('/:id', authMiddleware, authorizeRoles('school_admin'), updateUser);
  *         description: Forbidden
  */
 router.delete('/:id', authMiddleware, authorizeRoles('school_admin'), deleteUser);
-
-/**
- * @swagger
- * /users/stats:
- *   get:
- *     summary: Get user statistics
- *     tags: [Users (Improved)]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     totalUsers:
- *                       type: integer
- *                       example: 150
- *                     roleBreakdown:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           role:
- *                             type: string
- *                             example: "teacher"
- *                           count:
- *                             type: integer
- *                             example: 25
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- */
-router.get('/stats', authMiddleware, authorizeRoles('school_admin'), getUserStats);
 
 module.exports = router;
