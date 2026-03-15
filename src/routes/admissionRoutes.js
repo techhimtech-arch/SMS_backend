@@ -10,7 +10,8 @@ const {
   getAdmittedStudents,
   getAdmissionFormData,
   validateAdmission,
-  validatePartialAdmission
+  validatePartialAdmission,
+  validateCompleteAdmission
 } = require('../controllers/admissionController');
 
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -167,7 +168,7 @@ router.get('/partial', authMiddleware, authorizeRoles('school_admin', 'teacher')
  *       404:
  *         description: Student not found
  */
-router.put('/:studentId/complete', authMiddleware, authorizeRoles('school_admin', 'teacher'), validateAdmission, completeAdmission);
+router.put('/:studentId/complete', authMiddleware, authorizeRoles('school_admin', 'teacher'), validateCompleteAdmission, completeAdmission);
 
 /**
  * @swagger

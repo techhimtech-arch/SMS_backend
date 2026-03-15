@@ -57,6 +57,43 @@ const validatePartialAdmission = [
     .withMessage('Invalid emergency contact number')
 ];
 
+// Validation middleware for completing admission (partial to complete)
+const validateCompleteAdmission = [
+  body('classId')
+    .notEmpty()
+    .withMessage('Class is required')
+    .isMongoId()
+    .withMessage('Invalid class ID'),
+  
+  body('sectionId')
+    .notEmpty()
+    .withMessage('Section is required')
+    .isMongoId()
+    .withMessage('Invalid section ID'),
+  
+  body('admissionNumber')
+    .trim()
+    .notEmpty()
+    .withMessage('Admission number is required')
+    .isLength({ min: 3, max: 20 })
+    .withMessage('Admission number must be between 3 and 20 characters'),
+  
+  body('rollNumber')
+    .optional()
+    .isNumeric()
+    .withMessage('Roll number must be numeric'),
+  
+  body('parentUserId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid parent user ID'),
+  
+  body('bloodGroup')
+    .optional()
+    .isIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
+    .withMessage('Invalid blood group')
+];
+
 // Validation middleware for admission
 const validateAdmission = [
   body('firstName')
@@ -475,5 +512,6 @@ module.exports = {
   getAdmittedStudents,
   getAdmissionFormData,
   validateAdmission,
-  validatePartialAdmission
+  validatePartialAdmission,
+  validateCompleteAdmission
 };
