@@ -215,9 +215,10 @@ router.post(
     check('studentId', 'Student ID is required').notEmpty().isMongoId(),
     check('classId', 'Class ID is required').notEmpty().isMongoId(),
     check('sectionId', 'Section ID is required').notEmpty().isMongoId(),
-    check('subjectId', 'Subject ID is required').notEmpty().isMongoId(),
+    check('subjectId', 'Subject ID is optional for daily attendance').optional().isMongoId(),
     check('date', 'Date is required').notEmpty().isISO8601(),
-    check('status', 'Status must be Present, Absent, or Leave').isIn(['Present', 'Absent', 'Leave']),
+    check('status', 'Status must be Present, Absent, Leave, or Late').isIn(['Present', 'Absent', 'Leave', 'Late']),
+    check('attendanceType', 'Attendance type must be daily or subject').optional().isIn(['daily', 'subject']),
   ],
   validate,
   markAttendance
@@ -229,11 +230,12 @@ router.post(
   [
     check('classId', 'Class ID is required').notEmpty().isMongoId(),
     check('sectionId', 'Section ID is required').notEmpty().isMongoId(),
-    check('subjectId', 'Subject ID is required').notEmpty().isMongoId(),
+    check('subjectId', 'Subject ID is optional for daily attendance').optional().isMongoId(),
     check('date', 'Date is required').notEmpty().isISO8601(),
+    check('attendanceType', 'Attendance type must be daily or subject').optional().isIn(['daily', 'subject']),
     check('records', 'Records array is required').isArray({ min: 1 }),
     check('records.*.studentId', 'Each record must have a valid studentId').isMongoId(),
-    check('records.*.status', 'Each record status must be Present, Absent, or Leave').isIn(['Present', 'Absent', 'Leave']),
+    check('records.*.status', 'Each record status must be Present, Absent, Leave, or Late').isIn(['Present', 'Absent', 'Leave', 'Late']),
   ],
   validate,
   bulkMarkAttendance

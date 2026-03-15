@@ -14,6 +14,16 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Unauthorized access', 403));
   }
 
+  // For daily attendance, subjectId is not required
+  if (attendanceType === 'daily' && subjectId) {
+    return next(new ErrorResponse('SubjectId should not be provided for daily attendance', 400));
+  }
+
+  // For subject attendance, subjectId is required
+  if (attendanceType === 'subject' && !subjectId) {
+    return next(new ErrorResponse('SubjectId is required for subject-wise attendance', 400));
+  }
+
   // Role-based authorization
   if (role === 'superadmin' || role === 'school_admin') {
     // Allow - no assignment check needed
@@ -68,6 +78,7 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
   }
 
   const attendance = await Attendance.create({
+    enrollmentId: studentId, // Using studentId as enrollmentId for now
     studentId,
     classId,
     sectionId,
@@ -86,6 +97,16 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
 exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
   const { date, records, classId, sectionId, subjectId, attendanceType = 'daily' } = req.body;
   const { role, id: userId, schoolId } = req.user;
+
+  // For daily attendance, subjectId is not required
+  if (attendanceType === 'daily' && subjectId) {
+    return next(new ErrorResponse('SubjectId should not be provided for daily attendance', 400));
+  }
+
+  // For subject attendance, subjectId is required
+  if (attendanceType === 'subject' && !subjectId) {
+    return next(new ErrorResponse('SubjectId is required for subject-wise attendance', 400));
+  }
 
   // Role-based authorization
   if (role === 'superadmin' || role === 'school_admin') {
@@ -125,6 +146,7 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
 
   const bulkRecords = records.map((record) => ({
     ...record,
+    enrollmentId: record.studentId, // Using studentId as enrollmentId for now
     classId,
     sectionId,
     subjectId: attendanceType === 'subject' ? subjectId : null,
@@ -147,9 +169,17 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
   const { date, classId, sectionId, studentId } = req.query;
   const { role, id: userId, schoolId } = req.user;
 
+  // Convert date string to proper Date format for querying
+  const startDate = new Date(date);
+  const endDate = new Date(date);
+  endDate.setHours(23, 59, 59, 999);
+
   const query = {
     schoolId,
-    date,
+    date: {
+      $gte: startDate,
+      $lte: endDate
+    },
   };
 
   // Parent data isolation - only see their own children's attendance
