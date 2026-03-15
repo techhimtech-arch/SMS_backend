@@ -1,6 +1,7 @@
 const Attendance = require('../models/Attendance');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
+const AcademicYear = require('../models/AcademicYear');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 
@@ -95,25 +96,45 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
 
 // POST /api/attendance/bulk (Bulk daily attendance - by class teacher)
 exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
+  console.log(' BULK ATTENDANCE API CALLED');
+  console.log(' Request body:', JSON.stringify(req.body, null, 2));
+  console.log(' User info:', { role: req.user?.role, userId: req.user?.id, schoolId: req.user?.schoolId });
+  
   const { date, records, classId, sectionId, subjectId, attendanceType = 'daily' } = req.body;
   const { role, id: userId, schoolId } = req.user;
 
+  console.log(' Extracted params:', { date, recordsCount: records?.length, classId, sectionId, subjectId, attendanceType, role, userId, schoolId });
+
+  // Validate inputs
+  if (!records || !Array.isArray(records) || records.length === 0) {
+    console.log(' Invalid records array:', records);
+    return next(new ErrorResponse('Records array is required and cannot be empty', 400));
+  }
+
   // For daily attendance, subjectId is not required
   if (attendanceType === 'daily' && subjectId) {
+    console.log(' SubjectId provided for daily attendance');
     return next(new ErrorResponse('SubjectId should not be provided for daily attendance', 400));
   }
 
   // For subject attendance, subjectId is required
   if (attendanceType === 'subject' && !subjectId) {
+    console.log(' SubjectId missing for subject attendance');
     return next(new ErrorResponse('SubjectId is required for subject-wise attendance', 400));
   }
 
+  console.log(' Input validation passed');
+
   // Role-based authorization
+  console.log(' Checking authorization for role:', role);
   if (role === 'superadmin' || role === 'school_admin') {
+    console.log(' Admin access granted');
     // Allow - no assignment check needed
   } else if (role === 'teacher') {
+    console.log(' Teacher authorization check');
     if (attendanceType === 'daily') {
       // For daily attendance - check if teacher is CLASS TEACHER
+      console.log(' Checking class teacher assignment');
       const classTeacherAssignment = await ClassTeacherAssignment.findOne({
         teacherId: userId,
         classId,
@@ -122,11 +143,14 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
         isActive: true,
       });
 
+      console.log(' Class teacher assignment found:', !!classTeacherAssignment);
       if (!classTeacherAssignment) {
+        console.log(' Teacher not authorized as class teacher');
         return next(new ErrorResponse('You are not the class teacher of this section.', 403));
       }
     } else if (attendanceType === 'subject' && subjectId) {
       // For subject-wise attendance
+      console.log(' Checking subject assignment');
       const assignment = await TeacherAssignment.findOne({
         teacherId: userId,
         classId,
@@ -136,30 +160,64 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
         isActive: true,
       });
 
+      console.log(' Subject assignment found:', !!assignment);
       if (!assignment) {
+        console.log(' Teacher not authorized for subject');
         return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
       }
     }
   } else {
+    console.log(' Unauthorized role:', role);
     return next(new ErrorResponse('You are not authorized.', 403));
   }
 
-  const bulkRecords = records.map((record) => ({
-    ...record,
-    enrollmentId: record.studentId, // Using studentId as enrollmentId for now
-    classId,
-    sectionId,
-    subjectId: attendanceType === 'subject' ? subjectId : null,
-    attendanceType,
-    schoolId,
-    markedBy: userId,
-    date,
-  }));
+  console.log('✅ Authorization passed');
+
+  // Get current academic year for the school
+  console.log('🎓 Getting current academic year for school:', schoolId);
+  const currentAcademicYear = await AcademicYear.getCurrentYear(schoolId);
+  
+  if (!currentAcademicYear) {
+    console.log('❌ No current academic year found for school');
+    return next(new ErrorResponse('No current academic year found. Please set up an academic year first.', 400));
+  }
+  
+  console.log('✅ Found current academic year:', currentAcademicYear.name, 'ID:', currentAcademicYear._id);
+
+  console.log('📋 Creating bulk records from', records.length, 'records');
+  const bulkRecords = records.map((record, index) => {
+    console.log(`📝 Processing record ${index + 1}:`, record);
+    return {
+      ...record,
+      enrollmentId: record.studentId, // Using studentId as enrollmentId for now
+      classId,
+      sectionId,
+      subjectId: attendanceType === 'subject' ? subjectId : null,
+      attendanceType,
+      schoolId,
+      markedBy: userId,
+      date,
+      academicYearId: currentAcademicYear._id, // Add the missing academicYearId
+    };
+  });
+
+  console.log('📊 Prepared bulk records:', bulkRecords.length, 'records to insert');
+  console.log('🗄️ Inserting into database...');
 
   try {
+    console.log('🗄️ Inserting into database...');
+    console.log('📋 Bulk records to insert:', JSON.stringify(bulkRecords, null, 2));
+    
     const attendance = await Attendance.insertMany(bulkRecords, { ordered: false });
+    console.log('✅ Successfully inserted', attendance.length, 'attendance records');
+    console.log('📤 Sending response with data length:', attendance.length);
     res.status(201).json({ success: true, data: attendance });
   } catch (error) {
+    console.log('❌ Database insertion error:', error);
+    console.log('❌ Error details:', error.message);
+    if (error.errors) {
+      console.log('❌ Validation errors:', error.errors);
+    }
     return next(new ErrorResponse('Error marking bulk attendance', 500));
   }
 });
