@@ -4,6 +4,7 @@ const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const AcademicYear = require('../models/AcademicYear');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
+const logger = require('../utils/logger');
 
 // POST /api/attendance (Daily attendance - by class teacher)
 exports.markAttendance = asyncHandler(async (req, res, next) => {
@@ -96,45 +97,50 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
 
 // POST /api/attendance/bulk (Bulk daily attendance - by class teacher)
 exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
-  console.log(' BULK ATTENDANCE API CALLED');
-  console.log(' Request body:', JSON.stringify(req.body, null, 2));
-  console.log(' User info:', { role: req.user?.role, userId: req.user?.id, schoolId: req.user?.schoolId });
+  const log = logger.withRequest(req);
+  const perf = log.performance('bulk-attendance-marking');
+  
+  log.info('Bulk attendance marking started', {
+    attendanceType: req.body.attendanceType || 'daily',
+    recordsCount: req.body.records?.length,
+    classId: req.body.classId,
+    sectionId: req.body.sectionId,
+    date: req.body.date
+  });
   
   const { date, records, classId, sectionId, subjectId, attendanceType = 'daily' } = req.body;
   const { role, id: userId, schoolId } = req.user;
 
-  console.log(' Extracted params:', { date, recordsCount: records?.length, classId, sectionId, subjectId, attendanceType, role, userId, schoolId });
-
   // Validate inputs
   if (!records || !Array.isArray(records) || records.length === 0) {
-    console.log(' Invalid records array:', records);
+    log.warn('Invalid records array provided', { records });
     return next(new ErrorResponse('Records array is required and cannot be empty', 400));
   }
 
   // For daily attendance, subjectId is not required
   if (attendanceType === 'daily' && subjectId) {
-    console.log(' SubjectId provided for daily attendance');
+    log.warn('SubjectId provided for daily attendance', { attendanceType, subjectId });
     return next(new ErrorResponse('SubjectId should not be provided for daily attendance', 400));
   }
 
   // For subject attendance, subjectId is required
   if (attendanceType === 'subject' && !subjectId) {
-    console.log(' SubjectId missing for subject attendance');
+    log.warn('SubjectId missing for subject attendance', { attendanceType });
     return next(new ErrorResponse('SubjectId is required for subject-wise attendance', 400));
   }
 
-  console.log(' Input validation passed');
+  log.info('Input validation passed');
 
   // Role-based authorization
-  console.log(' Checking authorization for role:', role);
+  log.info('Checking authorization', { role });
   if (role === 'superadmin' || role === 'school_admin') {
-    console.log(' Admin access granted');
+    log.info('Admin access granted');
     // Allow - no assignment check needed
   } else if (role === 'teacher') {
-    console.log(' Teacher authorization check');
+    log.info('Teacher authorization check');
     if (attendanceType === 'daily') {
       // For daily attendance - check if teacher is CLASS TEACHER
-      console.log(' Checking class teacher assignment');
+      const dbPerf = log.performance('class-teacher-assignment-check');
       const classTeacherAssignment = await ClassTeacherAssignment.findOne({
         teacherId: userId,
         classId,
@@ -142,15 +148,21 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
         schoolId,
         isActive: true,
       });
+      dbPerf.end();
 
-      console.log(' Class teacher assignment found:', !!classTeacherAssignment);
       if (!classTeacherAssignment) {
-        console.log(' Teacher not authorized as class teacher');
+        logger.security('Unauthorized class teacher access attempt', {
+          userId,
+          classId,
+          sectionId,
+          attendanceType
+        });
         return next(new ErrorResponse('You are not the class teacher of this section.', 403));
       }
+      log.info('Class teacher assignment verified');
     } else if (attendanceType === 'subject' && subjectId) {
       // For subject-wise attendance
-      console.log(' Checking subject assignment');
+      const dbPerf = log.performance('subject-assignment-check');
       const assignment = await TeacherAssignment.findOne({
         teacherId: userId,
         classId,
@@ -159,37 +171,47 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
         schoolId,
         isActive: true,
       });
+      dbPerf.end();
 
-      console.log(' Subject assignment found:', !!assignment);
       if (!assignment) {
-        console.log(' Teacher not authorized for subject');
+        logger.security('Unauthorized subject access attempt', {
+          userId,
+          classId,
+          sectionId,
+          subjectId,
+          attendanceType
+        });
         return next(new ErrorResponse('You are not authorized to mark attendance for this subject.', 403));
       }
+      log.info('Subject assignment verified');
     }
   } else {
-    console.log(' Unauthorized role:', role);
+    logger.security('Unauthorized role access attempt', { role, userId });
     return next(new ErrorResponse('You are not authorized.', 403));
   }
 
-  console.log('✅ Authorization passed');
+  log.info('Authorization passed');
 
   // Get current academic year for the school
-  console.log('🎓 Getting current academic year for school:', schoolId);
+  const dbPerf = log.performance('academic-year-fetch');
   const currentAcademicYear = await AcademicYear.getCurrentYear(schoolId);
+  dbPerf.end();
   
   if (!currentAcademicYear) {
-    console.log('❌ No current academic year found for school');
+    log.error('No current academic year found', { schoolId });
     return next(new ErrorResponse('No current academic year found. Please set up an academic year first.', 400));
   }
   
-  console.log('✅ Found current academic year:', currentAcademicYear.name, 'ID:', currentAcademicYear._id);
+  log.info('Current academic year found', { 
+    academicYear: currentAcademicYear.name, 
+    academicYearId: currentAcademicYear._id 
+  });
 
-  console.log('📋 Creating bulk records from', records.length, 'records');
+  // Create bulk records
   const bulkRecords = records.map((record, index) => {
-    console.log(`📝 Processing record ${index + 1}:`, record);
     return {
       ...record,
-      enrollmentId: record.studentId, // Using studentId as enrollmentId for now
+      enrollmentId: record.studentId,
       classId,
       sectionId,
       subjectId: attendanceType === 'subject' ? subjectId : null,
@@ -197,27 +219,33 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
       schoolId,
       markedBy: userId,
       date,
-      academicYearId: currentAcademicYear._id, // Add the missing academicYearId
+      academicYearId: currentAcademicYear._id,
     };
   });
 
-  console.log('📊 Prepared bulk records:', bulkRecords.length, 'records to insert');
-  console.log('🗄️ Inserting into database...');
+  log.info('Bulk records prepared', { recordsCount: bulkRecords.length });
 
   try {
-    console.log('🗄️ Inserting into database...');
-    console.log('📋 Bulk records to insert:', JSON.stringify(bulkRecords, null, 2));
-    
+    const insertPerf = log.performance('database-insert');
     const attendance = await Attendance.insertMany(bulkRecords, { ordered: false });
-    console.log('✅ Successfully inserted', attendance.length, 'attendance records');
-    console.log('📤 Sending response with data length:', attendance.length);
+    insertPerf.end();
+    
+    logger.business('Bulk attendance marked', {
+      recordsInserted: attendance.length,
+      classId,
+      sectionId,
+      date,
+      markedBy: userId
+    });
+    
+    perf.end({ recordsInserted: attendance.length });
     res.status(201).json({ success: true, data: attendance });
   } catch (error) {
-    console.log('❌ Database insertion error:', error);
-    console.log('❌ Error details:', error.message);
-    if (error.errors) {
-      console.log('❌ Validation errors:', error.errors);
-    }
+    log.error('Database insertion failed', { 
+      error: error.message,
+      stack: error.stack,
+      recordsCount: bulkRecords.length 
+    });
     return next(new ErrorResponse('Error marking bulk attendance', 500));
   }
 });

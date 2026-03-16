@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
 const requestIdMiddleware = require('./middlewares/requestId');
+const requestLogger = require('./middleware/requestLogger');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -46,6 +47,7 @@ const app = express();
 // REQUEST TRACKING (Must be first)
 // ===========================================
 app.use(requestIdMiddleware);
+app.use(requestLogger);
 
 // ===========================================
 // SECURITY MIDDLEWARE (ORDER MATTERS!)
