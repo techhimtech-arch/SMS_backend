@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 const { validations, commonValidations, handleValidationErrors } = require('../middlewares/validationMiddleware');
@@ -25,11 +26,14 @@ const createUser = asyncHandler(async (req, res) => {
     // Create name from firstName and lastName
     const name = `${firstName} ${lastName}`;
 
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Create user
     const user = await User.create({
       name,
       email,
-      password,
+      password: hashedPassword,
       role,
       schoolId: schoolId || req.user.schoolId
     });
