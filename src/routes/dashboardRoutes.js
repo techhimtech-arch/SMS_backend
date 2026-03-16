@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDashboardStats } = require('../controllers/dashboardController');
+const { getDashboardStats, getTeacherDashboardStats } = require('../controllers/dashboardController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
 
@@ -79,5 +79,8 @@ const authorizeRoles = require('../middlewares/roleAuthorization');
 
 // GET /api/dashboard - Get dashboard stats (school_admin only)
 router.get('/', authMiddleware, authorizeRoles('school_admin'), getDashboardStats);
+
+// GET /api/dashboard/teacher - Get dashboard stats for teacher
+router.get('/teacher', authMiddleware, authorizeRoles('teacher'), getTeacherDashboardStats);
 
 module.exports = router;
