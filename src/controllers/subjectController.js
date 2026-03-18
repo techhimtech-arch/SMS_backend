@@ -1,5 +1,7 @@
 const Subject = require('../models/Subject');
 const Class = require('../models/Class');
+const TeacherAssignment = require('../models/TeacherAssignment');
+const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 
 // Create a new subject
 const createSubject = async (req, res) => {
@@ -32,19 +34,76 @@ const createSubject = async (req, res) => {
   }
 };
 
-// Get all subjects for the school
+// Get all subjects based on user role
 const getSubjects = async (req, res) => {
   try {
+    const { role } = req.user;
     const schoolId = req.user.schoolId;
+    let subjects;
 
-    const subjects = await Subject.find({ schoolId, isActive: true })
-      .populate('classId', 'name')
-      .sort({ classId: 1, name: 1 });
+    switch (role) {
+      case 'school_admin':
+        // Admin sees all subjects for the school
+        subjects = await Subject.find({ schoolId, isActive: true })
+          .populate('classId', 'name')
+          .sort({ classId: 1, name: 1 });
+        break;
+
+      case 'teacher':
+        // Teacher sees only subjects for their assigned classes
+        const teacherAssignments = await TeacherAssignment.find({ 
+          teacherId: req.user._id, 
+          schoolId, 
+          isActive: true 
+        }).distinct('classId');
+        
+        const classTeacherAssignments = await ClassTeacherAssignment.find({ 
+          teacherId: req.user._id, 
+          schoolId, 
+          isActive: true 
+        }).distinct('classId');
+
+        // Combine both types of assignments
+        const assignedClassIds = [...new Set([...teacherAssignments, ...classTeacherAssignments])];
+        
+        if (assignedClassIds.length === 0) {
+          return res.status(200).json({
+            success: true,
+            count: 0,
+            data: [],
+            message: 'No classes assigned to this teacher'
+          });
+        }
+
+        subjects = await Subject.find({ 
+          classId: { $in: assignedClassIds }, 
+          schoolId, 
+          isActive: true 
+        })
+          .populate('classId', 'name')
+          .sort({ classId: 1, name: 1 });
+        break;
+
+      case 'accountant':
+        // Accountant sees subjects with fee-related info (if needed in future)
+        // For now, same as admin but can be customized
+        subjects = await Subject.find({ schoolId, isActive: true })
+          .populate('classId', 'name')
+          .sort({ classId: 1, name: 1 });
+        break;
+
+      default:
+        return res.status(403).json({
+          success: false,
+          message: 'Access forbidden: Your role is not authorized to view subjects'
+        });
+    }
 
     res.status(200).json({
       success: true,
       count: subjects.length,
       data: subjects,
+      role: role, // Include role info for frontend reference
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });

@@ -66,7 +66,7 @@ router.post('/', authMiddleware, authorizeRoles('school_admin'), createSubject);
  *       200:
  *         description: List of subjects
  */
-router.get('/', authMiddleware, authorizeRoles('school_admin'), getSubjects);
+router.get('/', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getSubjects);
 
 /**
  * @swagger
