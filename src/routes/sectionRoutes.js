@@ -7,7 +7,7 @@ const {
   deleteSection,
 } = require('../controllers/sectionController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 const { validateSection } = require('../validators/sectionValidator');
 
 const router = express.Router();

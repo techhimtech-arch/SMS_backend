@@ -13,7 +13,7 @@ const {
   uploadProfileImage
 } = require('../controllers/improvedUserController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 const { handleProfileImageUpload } = require('../middlewares/uploadMiddleware');
 
 /**

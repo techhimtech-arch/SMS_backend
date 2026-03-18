@@ -13,7 +13,7 @@ const {
 } = require('../controllers/enrollmentController');
 
 const protect = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 
 // Apply protection to all routes
 router.use(protect);

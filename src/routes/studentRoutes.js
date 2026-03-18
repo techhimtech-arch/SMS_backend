@@ -1,7 +1,7 @@
 const express = require('express');
 const { createStudent, getStudents, getStudentById, updateStudent, deleteStudent, bulkImportStudents, getImportTemplate } = require('../controllers/studentController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 const { validateCreateStudent, validateUpdateStudent } = require('../validators/studentValidator');
 const { handleCSVUpload } = require('../middlewares/uploadMiddleware');
 

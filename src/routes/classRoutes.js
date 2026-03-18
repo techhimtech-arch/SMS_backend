@@ -6,7 +6,7 @@ const {
   deleteClass,
 } = require('../controllers/classController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 const { validateCreateClass, validateUpdateClass } = require('../validators/classValidator');
 
 /**

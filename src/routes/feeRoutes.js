@@ -19,7 +19,7 @@ const {
 } = require('../controllers/feeController');
 
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 
 /**
  * @swagger

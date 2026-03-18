@@ -8,7 +8,7 @@ const {
 } = require('../controllers/bulkAdmissionController');
 
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 
 /**
  * @swagger

@@ -1,4 +1,4 @@
-const { body, param, query, validationResult } = require('express-validator');
+const { body, param, query, check, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 
 /**
@@ -534,5 +534,9 @@ module.exports = {
   validations,
   validateAnnouncement: [validations.createAnnouncement, handleValidationErrors],
   validateAnnouncementUpdate: [validations.updateAnnouncement, handleValidationErrors],
-  validateComment: [validations.addComment, handleValidationErrors]
+  validateComment: [validations.addComment, handleValidationErrors],
+  body,
+  check,
+  param,
+  query
 };

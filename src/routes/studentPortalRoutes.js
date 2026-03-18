@@ -10,7 +10,7 @@ const {
   getDashboardStats,
 } = require('../controllers/studentPortalController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 
 const router = express.Router();
 

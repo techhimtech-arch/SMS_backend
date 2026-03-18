@@ -13,7 +13,7 @@ const {
 } = require('../controllers/enrollmentAttendanceController');
 
 const authMiddleware = require('../middlewares/authMiddleware');
-const authorizeRoles = require('../middlewares/roleAuthorization');
+const { authorizeRoles } = require('../middlewares/roleAuthorization');
 
 /**
  * @swagger
