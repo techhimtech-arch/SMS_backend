@@ -6,10 +6,15 @@ const {
   getUserById,
   updateUser,
   deleteUser,
-  getUserStats
+  getUserStats,
+  getMyProfile,
+  updateMyProfile,
+  changeMyPassword,
+  uploadProfileImage
 } = require('../controllers/improvedUserController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authorizeRoles = require('../middlewares/roleAuthorization');
+const { handleProfileImageUpload } = require('../middlewares/uploadMiddleware');
 
 /**
  * @swagger
@@ -403,5 +408,205 @@ router.put('/:id', authMiddleware, authorizeRoles('school_admin'), updateUser);
  *         description: Forbidden
  */
 router.delete('/:id', authMiddleware, authorizeRoles('school_admin'), deleteUser);
+
+// ===========================================
+// PROFILE MANAGEMENT ENDPOINTS
+// ===========================================
+
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Profile retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     schoolId:
+ *                       type: string
+ *                     profileImage:
+ *                       type: string
+ *                       nullable: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get('/me', authMiddleware, getMyProfile);
+
+/**
+ * @swagger
+ * /users/me:
+ *   patch:
+ *     summary: Update current user profile
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *                 description: Full name
+ *                 example: "John Doe"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: New email address
+ *                 example: "john.doe@newschool.com"
+ *               phone:
+ *                 type: string
+ *                 description: Phone number
+ *                 example: "+1234567890"
+ *               address:
+ *                 type: object
+ *                 properties:
+ *                   street:
+ *                     type: string
+ *                     example: "123 Main St"
+ *                   city:
+ *                     type: string
+ *                     example: "New York"
+ *                   state:
+ *                     type: string
+ *                     example: "NY"
+ *                   zipCode:
+ *                     type: string
+ *                     example: "10001"
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Validation error or email already exists
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.patch('/me', authMiddleware, updateMyProfile);
+
+/**
+ * @swagger
+ * /users/change-password:
+ *   patch:
+ *     summary: Change current user password
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: Current password
+ *                 example: "oldPassword123"
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 128
+ *                 description: New password (min 6 characters, at least one uppercase, lowercase, and number)
+ *                 example: "newPassword123"
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Invalid current password or validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.patch('/change-password', authMiddleware, changeMyPassword);
+
+/**
+ * @swagger
+ * /users/profile-image:
+ *   post:
+ *     summary: Upload profile image
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile image file (max 5MB, jpg/jpeg/png only)
+ *     responses:
+ *       200:
+ *         description: Profile image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Profile image uploaded successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imageUrl:
+ *                       type: string
+ *                       example: "/uploads/profile-images/user_123_image.jpg"
+ *       400:
+ *         description: No file uploaded or invalid file format
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.post('/profile-image', authMiddleware, handleProfileImageUpload, uploadProfileImage);
 
 module.exports = router;

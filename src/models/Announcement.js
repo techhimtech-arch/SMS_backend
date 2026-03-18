@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { addSoftDeleteFilter } = require('../utils/softDelete');
 
 const announcementSchema = new mongoose.Schema({
   title: {
@@ -157,7 +158,30 @@ const announcementSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  
+  // Audit fields
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  
+  // Soft delete fields
+  isDeleted: {
+    type: Boolean,
+    default: false,
+  },
+  deletedAt: {
+    type: Date,
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -172,6 +196,12 @@ announcementSchema.index({ expiryDate: 1 });
 announcementSchema.index({ scheduledDate: 1 });
 announcementSchema.index({ priority: 1 });
 announcementSchema.index({ type: 1 });
+announcementSchema.index({ schoolId: 1, isActive: 1 });
+announcementSchema.index({ schoolId: 1, isDeleted: 1 });
+announcementSchema.index({ createdBy: 1 });
+
+// Apply soft delete filter
+addSoftDeleteFilter(announcementSchema);
 
 // Virtual for checking if announcement is expired
 announcementSchema.virtual('isExpired').get(function() {

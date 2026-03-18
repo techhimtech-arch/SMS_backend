@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { addSoftDeleteFilter } = require('../utils/softDelete');
 
 const studentSchema = new mongoose.Schema(
   {
@@ -59,10 +60,27 @@ const studentSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // Audit fields
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    // Soft delete fields
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }
   },
   {
     timestamps: true,
@@ -74,6 +92,14 @@ studentSchema.index({ admissionNumber: 1, schoolId: 1 }, { unique: true });
 
 // Compound index to ensure unique rollNumber per section per school
 studentSchema.index({ rollNumber: 1, sectionId: 1, schoolId: 1 }, { unique: true, sparse: true });
+
+// Additional indexes for performance
+studentSchema.index({ schoolId: 1, isActive: 1 });
+studentSchema.index({ schoolId: 1, isDeleted: 1 });
+studentSchema.index({ createdBy: 1 });
+
+// Apply soft delete filter
+addSoftDeleteFilter(studentSchema);
 
 // Virtual for current enrollment
 studentSchema.virtual('currentEnrollment', {

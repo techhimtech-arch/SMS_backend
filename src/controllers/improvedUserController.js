@@ -3,7 +3,10 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
-const { validations, commonValidations, handleValidationErrors } = require('../middlewares/validationMiddleware');
+const { validations, commonValidations, handleValidationErrors, body } = require('../middlewares/validationMiddleware');
+const { softDelete } = require('../utils/softDelete');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * @desc    Create new user
@@ -35,7 +38,8 @@ const createUser = asyncHandler(async (req, res) => {
       email,
       password: hashedPassword,
       role,
-      schoolId: schoolId || req.user.schoolId
+      schoolId: schoolId || req.user.schoolId,
+      createdBy: req.user._id
     });
 
     // Remove password from response
@@ -272,7 +276,7 @@ const updateUser = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Delete user
+ * @desc    Soft delete user
  * @route    DELETE /api/v1/users/:id
  * @access   Private/School Admin
  */
@@ -295,7 +299,7 @@ const deleteUser = asyncHandler(async (req, res) => {
       });
     }
 
-    // Prevent deletion of the current user
+    // Prevent deletion of current user
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
@@ -303,9 +307,10 @@ const deleteUser = asyncHandler(async (req, res) => {
       });
     }
 
-    await User.findByIdAndDelete(req.params.id);
+    // Soft delete the user
+    await softDelete(user, req.user._id);
 
-    logger.info('User deleted successfully', {
+    logger.info('User soft deleted successfully', {
       userId: user._id,
       email: user.email,
       role: user.role,
@@ -388,6 +393,242 @@ const getUserStats = asyncHandler(async (req, res) => {
   }
 });
 
+// ===========================================
+// PROFILE MANAGEMENT FUNCTIONS
+// ===========================================
+
+/**
+ * @desc    Get current user profile
+ * @route    GET /api/v1/users/me
+ * @access   Private
+ */
+const getMyProfile = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .select('-password')
+      .populate('schoolId', 'name email');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile retrieved successfully',
+      data: user
+    });
+
+  } catch (error) {
+    logger.error('Failed to get user profile', {
+      error: error.message,
+      userId: req.user.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @desc    Update current user profile
+ * @route    PATCH /api/v1/users/me
+ * @access   Private
+ */
+const updateMyProfile = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if email is being changed and if it's already taken
+    if (req.body.email && req.body.email !== user.email) {
+      const existingUser = await User.findOne({ 
+        email: req.body.email,
+        _id: { $ne: user._id }
+      });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is already in use'
+        });
+      }
+    }
+
+    // Update user fields
+    const allowedUpdates = ['name', 'email', 'phone', 'address'];
+    const updates = {};
+    
+    allowedUpdates.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    logger.info('User profile updated successfully', {
+      userId: updatedUser._id,
+      updatedFields: Object.keys(updates)
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+
+  } catch (error) {
+    logger.error('Failed to update user profile', {
+      error: error.message,
+      userId: req.user.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @desc    Change current user password
+ * @route    PATCH /api/v1/users/change-password
+ * @access   Private
+ */
+const changeMyPassword = asyncHandler(async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    await User.findByIdAndUpdate(req.user.userId, {
+      password: hashedNewPassword
+    });
+
+    logger.info('User password changed successfully', {
+      userId: user._id
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    logger.error('Failed to change password', {
+      error: error.message,
+      userId: req.user.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @desc    Upload profile image
+ * @route    POST /api/v1/users/profile-image
+ * @access   Private
+ */
+const uploadProfileImage = asyncHandler(async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete old profile image if exists
+    if (user.profileImage) {
+      const oldImagePath = path.join(__dirname, '..', 'public', user.profileImage);
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+      }
+    }
+
+    // Save new profile image path
+    const imageUrl = `/uploads/profile-images/${req.file.filename}`;
+
+    await User.findByIdAndUpdate(req.user.userId, {
+      profileImage: imageUrl
+    });
+
+    logger.info('Profile image uploaded successfully', {
+      userId: user._id,
+      imageUrl
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile image uploaded successfully',
+      data: {
+        imageUrl
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to upload profile image', {
+      error: error.message,
+      userId: req.user.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload profile image',
+      error: error.message
+    });
+  }
+});
+
 module.exports = {
   createUser: [validations.createUser, handleValidationErrors, createUser],
   getUsers: [validations.pagination, handleValidationErrors, getUsers],
@@ -399,5 +640,24 @@ module.exports = {
     updateUser
   ],
   deleteUser: [commonValidations.objectId('id'), handleValidationErrors, deleteUser],
-  getUserStats
+  getUserStats,
+  getMyProfile,
+  updateMyProfile: [
+    // Add validation for profile update
+    commonValidations.name('name', 2, 100).optional(),
+    commonValidations.email().optional(),
+    commonValidations.phone('phone').optional(),
+    handleValidationErrors,
+    updateMyProfile
+  ],
+  changeMyPassword: [
+    // Add validation for password change
+    body('currentPassword')
+      .notEmpty()
+      .withMessage('Current password is required'),
+    commonValidations.password('newPassword'),
+    handleValidationErrors,
+    changeMyPassword
+  ],
+  uploadProfileImage
 };
