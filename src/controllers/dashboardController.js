@@ -31,11 +31,30 @@ const logger = require('../utils/logger');
 const getDashboardStats = async (req, res) => {
   try {
     const schoolId = new mongoose.Types.ObjectId(req.user.schoolId);
-
-    // Get today's date range (start and end of day)
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    
+    // Date filtering - support custom date ranges
+    const { startDate, endDate } = req.query;
+    
+    let dateFilter = {};
+    if (startDate && endDate) {
+      // Custom date range provided
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include entire end date
+      
+      dateFilter = {
+        date: { $gte: start, $lte: end }
+      };
+    } else {
+      // Default to today if no dates provided
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      
+      dateFilter = {
+        date: { $gte: startOfDay, $lte: endOfDay }
+      };
+    }
 
     // Run all queries in parallel for better performance
     const [
@@ -58,12 +77,12 @@ const getDashboardStats = async (req, res) => {
       
       Section.countDocuments({ schoolId, isActive: true }),
 
-      // Attendance Stats - using aggregation pipeline
+      // Attendance Stats - using aggregation pipeline with date filter
       Attendance.aggregate([
         {
           $match: {
             schoolId,
-            date: { $gte: startOfDay, $lte: endOfDay },
+            ...dateFilter
           },
         },
         {
@@ -80,10 +99,13 @@ const getDashboardStats = async (req, res) => {
         },
       ]),
 
-      // Fees Stats - total collected using aggregation
+      // Fees Stats - total collected with date filter if provided
       FeePayment.aggregate([
         {
-          $match: { schoolId },
+          $match: { 
+            schoolId,
+            ...(startDate && endDate && { createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) } })
+          },
         },
         {
           $group: {
@@ -129,8 +151,13 @@ const getDashboardStats = async (req, res) => {
     const totalFeesCollected = feesCollected[0]?.totalAmount || 0;
     const totalPendingFees = pendingFees[0]?.totalPending || 0;
 
-    // Build response
+    // Build response with date info
     const dashboardData = {
+      dateRange: {
+        startDate: startDate || new Date().toISOString().split('T')[0],
+        endDate: endDate || new Date().toISOString().split('T')[0],
+        isCustomRange: !!(startDate && endDate)
+      },
       stats: {
         totalStudents,
         totalTeachers,
@@ -178,10 +205,29 @@ const getTeacherDashboardStats = async (req, res) => {
     const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
     const schoolObjectId = new mongoose.Types.ObjectId(schoolId);
 
-    // Get today's date range
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    // Date filtering - support custom date ranges
+    const { startDate, endDate } = req.query;
+    
+    let dateFilter = {};
+    if (startDate && endDate) {
+      // Custom date range provided
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include entire end date
+      
+      dateFilter = {
+        date: { $gte: start, $lte: end }
+      };
+    } else {
+      // Default to today if no dates provided
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      
+      dateFilter = {
+        date: { $gte: startOfDay, $lte: endOfDay }
+      };
+    }
 
     // Get teacher's class assignments (as class teacher)
     const classTeacherAssignments = await ClassTeacherAssignment.find({
@@ -258,12 +304,12 @@ const getTeacherDashboardStats = async (req, res) => {
       }))
     }).distinct('_id');
 
-    // Get today's attendance for teacher's students
+    // Get today's attendance for teacher's students with date filter
     const attendanceStats = await Attendance.aggregate([
       {
         $match: {
           schoolId: schoolObjectId,
-          date: { $gte: startOfDay, $lte: endOfDay },
+          ...dateFilter,
           studentId: { $in: studentIds }
         },
       },
@@ -297,8 +343,13 @@ const getTeacherDashboardStats = async (req, res) => {
         ? parseFloat(((attendanceData.presentCount / attendanceData.totalMarked) * 100).toFixed(2))
         : 0;
 
-    // Build response
+    // Build response with date info
     const dashboardData = {
+      dateRange: {
+        startDate: startDate || new Date().toISOString().split('T')[0],
+        endDate: endDate || new Date().toISOString().split('T')[0],
+        isCustomRange: !!(startDate && endDate)
+      },
       stats: {
         totalAssignedStudents,
         totalClasses: teacherClasses.length,
