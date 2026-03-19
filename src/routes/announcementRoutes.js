@@ -9,7 +9,9 @@ const {
   deleteAnnouncement,
   markAsRead,
   addComment,
-  getAnnouncementStats
+  getAnnouncementStats,
+  publishAnnouncement,
+  unpublishAnnouncement
 } = require('../controllers/announcementController');
 const protect = require('../middlewares/authMiddleware');
 const { validateAnnouncement } = require('../middlewares/validationMiddleware');
@@ -593,6 +595,60 @@ router.delete('/:id', deleteAnnouncement);
  *         description: Announcement not found
  */
 router.post('/:id/read', markAsRead);
+
+/**
+ * @swagger
+ * /api/v1/announcements/{id}/publish:
+ *   post:
+ *     summary: Publish an announcement
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Announcement ID
+ *     responses:
+ *       200:
+ *         description: Announcement published successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not authorized to publish this announcement
+ *       404:
+ *         description: Announcement not found
+ */
+router.post('/:id/publish', publishAnnouncement);
+
+/**
+ * @swagger
+ * /api/v1/announcements/{id}/unpublish:
+ *   post:
+ *     summary: Unpublish an announcement
+ *     tags: [Announcements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Announcement ID
+ *     responses:
+ *       200:
+ *         description: Announcement unpublished successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not authorized to unpublish this announcement
+ *       404:
+ *         description: Announcement not found
+ */
+router.post('/:id/unpublish', unpublishAnnouncement);
 
 /**
  * @swagger

@@ -5,6 +5,7 @@ const Class = require('../models/Class');
 const Section = require('../models/Section');
 const auditLogger = require('../utils/auditLogger');
 const logger = require('../utils/logger');
+const notificationService = require('../services/notificationService');
 
 /**
  * @desc    Create new announcement
@@ -343,10 +344,12 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
   }
 
   const updates = req.body;
-  
+  let wasPublished = false;
+
   // Handle status changes
   if (updates.status === 'published' && announcement.status === 'draft') {
     updates.publishDate = new Date();
+    wasPublished = true;
   }
 
   const updatedAnnouncement = await Announcement.findByIdAndUpdate(
@@ -354,6 +357,11 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
     updates,
     { new: true, runValidators: true }
   ).populate('author', 'name email');
+
+  // Create notifications if announcement was published
+  if (wasPublished) {
+    await notificationService.createAnnouncementNotifications(updatedAnnouncement);
+  }
 
   // Log audit
   await auditLogger.log({
@@ -545,6 +553,100 @@ const getAnnouncementStats = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Publish announcement
+ * @route   POST /api/v1/announcements/:id/publish
+ * @access  Private (Author, Admin)
+ */
+const publishAnnouncement = asyncHandler(async (req, res) => {
+  const announcement = await Announcement.findById(req.params.id);
+
+  if (!announcement) {
+    return res.status(404).json({
+      success: false,
+      message: 'Announcement not found'
+    });
+  }
+
+  // Check permission
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Not authorized to publish this announcement'
+    });
+  }
+
+  // Update status to PUBLISHED
+  announcement.status = 'PUBLISHED';
+  announcement.publishDate = new Date();
+  await announcement.save();
+
+  // Create notifications for targeted users
+  await notificationService.createAnnouncementNotifications(announcement);
+
+  // Log audit
+  await auditLogger.log({
+    action: 'ANNOUNCEMENT_PUBLISH',
+    userId: req.user.id,
+    userType: req.user.role,
+    schoolId: req.user.schoolId,
+    targetId: announcement._id,
+    targetType: 'Announcement',
+    ipAddress: req.ip
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Announcement published successfully',
+    data: announcement
+  });
+});
+
+/**
+ * @desc    Unpublish announcement
+ * @route   POST /api/v1/announcements/:id/unpublish
+ * @access  Private (Author, Admin)
+ */
+const unpublishAnnouncement = asyncHandler(async (req, res) => {
+  const announcement = await Announcement.findById(req.params.id);
+
+  if (!announcement) {
+    return res.status(404).json({
+      success: false,
+      message: 'Announcement not found'
+    });
+  }
+
+  // Check permission
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Not authorized to unpublish this announcement'
+    });
+  }
+
+  // Update status to DRAFT
+  announcement.status = 'DRAFT';
+  await announcement.save();
+
+  // Log audit
+  await auditLogger.log({
+    action: 'ANNOUNCEMENT_UNPUBLISH',
+    userId: req.user.id,
+    userType: req.user.role,
+    schoolId: req.user.schoolId,
+    targetId: announcement._id,
+    targetType: 'Announcement',
+    ipAddress: req.ip
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Announcement unpublished successfully',
+    data: announcement
+  });
+});
+
+/**
  * Helper function to check if user has access to announcement
  */
 const checkAnnouncementAccess = async (announcement, user) => {
@@ -591,5 +693,7 @@ module.exports = {
   deleteAnnouncement,
   markAsRead,
   addComment,
-  getAnnouncementStats
+  getAnnouncementStats,
+  publishAnnouncement,
+  unpublishAnnouncement
 };
