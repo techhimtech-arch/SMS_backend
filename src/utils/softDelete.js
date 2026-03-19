@@ -18,13 +18,13 @@ const addSoftDeleteFilter = (schema) => {
   // Pre-count hook to exclude soft-deleted documents
   schema.pre('countDocuments', function() {
     if (!this.getOptions().includeDeleted) {
-      this.where({ isDeleted: { ne: true } });
+      this.where({ isDeleted: { $ne: true } });
     }
   });
 
   // Pre-aggregate hook to exclude soft-deleted documents
   schema.pre('aggregate', function() {
-    if (!this.options().includeDeleted) {
+    if (!this.getOptions().includeDeleted) {
       this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
     }
   });

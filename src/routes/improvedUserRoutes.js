@@ -324,93 +324,8 @@ router.get('/stats', authMiddleware, authorizeRoles('school_admin'), getUserStat
  *       403:
  *         description: Forbidden (user from different school)
  */
-router.get('/:id', authMiddleware, authorizeRoles('school_admin'), getUserById);
-
-/**
- * @swagger
- * /users/{id}:
- *   put:
- *     summary: Update user
- *     tags: [Users (Improved)]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               firstName:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 50
- *                 description: First name (2-50 characters)
- *               lastName:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 50
- *                 description: Last name (2-50 characters)
- *               email:
- *                 type: string
- *                 format: email
- *                 description: Valid email address
- *               role:
- *                 type: string
- *                 enum: [superadmin, school_admin, teacher, accountant, parent, student]
- *                 description: User role
- *     responses:
- *       200:
- *         description: User updated successfully
- *       400:
- *         description: Validation error or email already in use
- *       404:
- *         description: User not found
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- */
-router.put('/:id', authMiddleware, authorizeRoles('school_admin'), updateUser);
-
-/**
- * @swagger
- * /users/{id}:
- *   delete:
- *     summary: Delete user
- *     tags: [Users (Improved)]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       400:
- *         description: Cannot delete your own account
- *       404:
- *         description: User not found
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- */
-router.delete('/:id', authMiddleware, authorizeRoles('school_admin'), deleteUser);
-
 // ===========================================
-// PROFILE MANAGEMENT ENDPOINTS
+// PROFILE MANAGEMENT ENDPOINTS (MUST BE BEFORE /:id routes)
 // ===========================================
 
 /**
@@ -608,5 +523,116 @@ router.patch('/change-password', authMiddleware, changeMyPassword);
  *         description: User not found
  */
 router.post('/profile-image', authMiddleware, handleProfileImageUpload, uploadProfileImage);
+
+// ===========================================
+// USER MANAGEMENT ENDPOINTS (Individual User by ID)
+// These must come AFTER /me routes to avoid 'me' being treated as ID
+// ===========================================
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (user from different school)
+ */
+router.get('/:id', authMiddleware, authorizeRoles('school_admin'), getUserById);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Update user
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               lastName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               role:
+ *                 type: string
+ *                 enum: [superadmin, school_admin, teacher, accountant, parent, student]
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       400:
+ *         description: Validation error or email already in use
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+router.put('/:id', authMiddleware, authorizeRoles('school_admin'), updateUser);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: Delete user
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       400:
+ *         description: Cannot delete your own account
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+router.delete('/:id', authMiddleware, authorizeRoles('school_admin'), deleteUser);
 
 module.exports = router;
