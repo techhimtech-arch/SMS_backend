@@ -465,4 +465,204 @@ router.get('/student/:studentId/payment-details', authMiddleware, authorizeRoles
  */
 router.get('/:feeId/receipt/:receiptNumber', authMiddleware, authorizeRoles('school_admin', 'teacher', 'parent'), getFeeReceipt);
 
+// ============ Phase 5 Advanced Fee Management Routes ============
+
+const {
+  generateStudentFees,
+  getStudentFees,
+  makePayment,
+  getPayments,
+  getFeeDues,
+  processRefund
+} = require('../controllers/feeController');
+
+const {
+  validateGenerateStudentFees,
+  validateMakePayment,
+  validateProcessRefund,
+  validateFeeQueryParams,
+  validateStudentIdParam,
+  validatePaymentIdParam
+} = require('../validators/feeValidator');
+
+/**
+ * @swagger
+ * /fees/generate-student-fees:
+ *   post:
+ *     summary: Generate student fees from fee structure
+ *     tags: [Fee Management]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - studentId
+ *               - classId
+ *               - sectionId
+ *               - academicSessionId
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *               classId:
+ *                 type: string
+ *               sectionId:
+ *                 type: string
+ *               academicSessionId:
+ *                 type: string
+ *               customFeeItems:
+ *                 type: array
+ *     responses:
+ *       201:
+ *         description: Student fees generated successfully
+ */
+router.post('/generate-student-fees', authMiddleware, authorizeRoles('school_admin', 'accountant'), validateGenerateStudentFees, generateStudentFees);
+
+/**
+ * @swagger
+ * /fees/student/{studentId}/fees:
+ *   get:
+ *     summary: Get all fees for a student
+ *     tags: [Fee Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicSessionId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Student fees retrieved successfully
+ */
+router.get('/student/:studentId/fees', authMiddleware, authorizeRoles('school_admin', 'accountant', 'parent'), validateStudentIdParam, getStudentFees);
+
+/**
+ * @swagger
+ * /fees/payments:
+ *   get:
+ *     summary: Get all fee payments
+ *     tags: [Fee Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: studentId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicSessionId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: paymentMode
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: fromDate
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: toDate
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payments retrieved successfully
+ */
+router.get('/payments', authMiddleware, authorizeRoles('school_admin', 'accountant'), validateFeeQueryParams, getPayments);
+
+/**
+ * @swagger
+ * /fees/dues:
+ *   get:
+ *     summary: Get all fee dues
+ *     tags: [Fee Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: classId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: sectionId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicSessionId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fee dues retrieved successfully
+ */
+router.get('/dues', authMiddleware, authorizeRoles('school_admin', 'accountant'), validateFeeQueryParams, getFeeDues);
+
+/**
+ * @swagger
+ * /fees/receipt/{paymentId}:
+ *   get:
+ *     summary: Get payment receipt by payment ID
+ *     tags: [Fee Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Receipt retrieved successfully
+ */
+router.get('/receipt/:paymentId', authMiddleware, authorizeRoles('school_admin', 'accountant', 'parent'), validatePaymentIdParam, getReceipt);
+
+/**
+ * @swagger
+ * /fees/refund/{paymentId}:
+ *   post:
+ *     summary: Process refund for a payment
+ *     tags: [Fee Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refundAmount
+ *               - reason
+ *             properties:
+ *               refundAmount:
+ *                 type: number
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Refund processed successfully
+ */
+router.post('/refund/:paymentId', authMiddleware, authorizeRoles('school_admin', 'accountant'), validateProcessRefund, processRefund);
+
 module.exports = router;

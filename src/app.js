@@ -36,6 +36,8 @@ const announcementRoutes = require('./routes/announcementRoutes');
 // Phase 4 routes
 const assignmentRoutes = require('./routes/assignmentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+// Phase 5 routes
+const certificateRoutes = require('./routes/certificateRoutes');
 // Bulk admission system routes
 const bulkAdmissionRoutes = require('./routes/bulkAdmissionRoutes');
 
@@ -170,6 +172,7 @@ app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
 app.use('/api/v1/assignments', assignmentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/certificates', certificateRoutes);
 app.use('/api/v1/admission/bulk', bulkAdmissionRoutes);
 
 // ===========================================

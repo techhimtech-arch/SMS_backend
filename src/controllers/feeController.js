@@ -1,7 +1,11 @@
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
+const FeeStructure = require('../models/FeeStructure');
+const StudentFee = require('../models/StudentFee');
+const FeePayment = require('../models/FeePayment');
 const feeService = require('../services/feeService');
 const logger = require('../utils/logger');
+const auditLogger = require('../utils/auditLogger');
 
 // Validation middleware for fee structure creation
 const validateFeeStructure = [
@@ -400,6 +404,374 @@ const getFeeReceipt = asyncHandler(async (req, res) => {
   }
 });
 
+// ============ Phase 5 Advanced Fee Management Methods ============
+
+/**
+ * @desc    Generate student fees from fee structure
+ * @route   POST /api/v1/fees/generate-student-fees
+ * @access  Private (Admin, Accountant)
+ */
+const generateStudentFees = asyncHandler(async (req, res) => {
+  const { studentId, classId, sectionId, academicSessionId, customFeeItems } = req.body;
+
+  // Check if student already has fees for this session
+  const existing = await StudentFee.findOne({
+    studentId,
+    academicYearId: academicSessionId,
+    isDeleted: { $ne: true }
+  });
+
+  if (existing) {
+    return res.status(400).json({
+      success: false,
+      message: 'Student fees already generated for this academic session'
+    });
+  }
+
+  let feeItems = [];
+
+  // If custom fee items provided, use them
+  if (customFeeItems && customFeeItems.length > 0) {
+    feeItems = customFeeItems.map(item => ({
+      ...item,
+      dueAmount: item.amount,
+      status: 'PENDING'
+    }));
+  } else {
+    // Get fee structure for class and generate fee items
+    const feeStructure = await FeeStructure.findActiveForClass(classId, academicSessionId);
+
+    if (!feeStructure) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active fee structure found for this class and academic session'
+      });
+    }
+
+    // Generate fee items from fee structure
+    const now = new Date();
+    feeItems = feeStructure.feeHeads.map(head => {
+      let dueDate = new Date(now);
+
+      switch (head.frequency) {
+        case 'MONTHLY':
+          dueDate.setMonth(dueDate.getMonth() + 1);
+          break;
+        case 'QUARTERLY':
+          dueDate.setMonth(dueDate.getMonth() + 3);
+          break;
+        case 'YEARLY':
+          dueDate.setMonth(dueDate.getMonth() + 12);
+          break;
+        default:
+          dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+
+      return {
+        feeHeadId: head._id,
+        feeHeadName: head.name,
+        amount: head.amount,
+        paidAmount: 0,
+        dueAmount: head.amount,
+        dueDate,
+        status: 'PENDING',
+        frequency: head.frequency
+      };
+    });
+  }
+
+  const studentFee = new StudentFee({
+    studentId,
+    classId,
+    sectionId,
+    academicYearId: academicSessionId,
+    schoolId: req.user.schoolId,
+    feeItems,
+    totalAmount: feeItems.reduce((sum, item) => sum + item.amount, 0),
+    paidAmount: 0,
+    balanceAmount: feeItems.reduce((sum, item) => sum + item.amount, 0),
+    createdBy: req.user.id
+  });
+
+  const saved = await studentFee.save();
+
+  await auditLogger.log({
+    action: 'STUDENT_FEE_GENERATE',
+    userId: req.user.id,
+    userType: req.user.role,
+    schoolId: req.user.schoolId,
+    targetId: saved._id,
+    targetType: 'StudentFee',
+    details: { studentId, totalAmount: saved.totalAmount },
+    ipAddress: req.ip
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Student fees generated successfully',
+    data: saved
+  });
+});
+
+/**
+ * @desc    Get student fees
+ * @route   GET /api/v1/fees/student/:studentId
+ * @access  Private (Admin, Accountant, Student, Parent)
+ */
+const getStudentFees = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const { academicSessionId } = req.query;
+
+  // Check permissions for student/parent
+  if (req.user.role === 'student' && req.user.id !== studentId) {
+    return res.status(403).json({
+      success: false,
+      message: 'Not authorized to view these fees'
+    });
+  }
+
+  const filters = { studentId, isDeleted: { $ne: true } };
+  if (academicSessionId) filters.academicYearId = academicSessionId;
+
+  const studentFees = await StudentFee.find(filters)
+    .populate('studentId', 'name admissionNumber')
+    .populate('classId', 'name')
+    .populate('sectionId', 'name')
+    .populate('academicYearId', 'name year')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: studentFees.length,
+    data: studentFees
+  });
+});
+
+/**
+ * @desc    Make fee payment
+ * @route   POST /api/v1/fees/pay
+ * @access  Private (Admin, Accountant)
+ */
+const makePayment = asyncHandler(async (req, res) => {
+  const {
+    studentId,
+    studentFeeId,
+    feeItemId,
+    amountPaid,
+    paymentMode,
+    transactionId,
+    remarks
+  } = req.body;
+
+  const studentFee = await StudentFee.findById(studentFeeId);
+  if (!studentFee) {
+    return res.status(404).json({
+      success: false,
+      message: 'Student fee record not found'
+    });
+  }
+
+  const feeItem = studentFee.getFeeItem(feeItemId);
+  if (!feeItem) {
+    return res.status(404).json({
+      success: false,
+      message: 'Fee item not found'
+    });
+  }
+
+  if (amountPaid > feeItem.dueAmount) {
+    return res.status(400).json({
+      success: false,
+      message: `Payment amount cannot exceed due amount of ${feeItem.dueAmount}`
+    });
+  }
+
+  const receiptNumber = await FeePayment.generateReceiptNumber();
+
+  const payment = new FeePayment({
+    studentId,
+    studentFeeId,
+    feeItemId,
+    schoolId: req.user.schoolId,
+    academicSessionId: studentFee.academicYearId,
+    amountPaid,
+    paymentMode,
+    transactionId,
+    receiptNumber,
+    collectedBy: req.user.id,
+    feeHeadName: feeItem.feeHeadName,
+    remarks,
+    createdBy: req.user.id
+  });
+
+  const savedPayment = await payment.save();
+  await studentFee.addPayment(feeItemId, amountPaid);
+
+  await auditLogger.log({
+    action: 'FEE_PAYMENT',
+    userId: req.user.id,
+    userType: req.user.role,
+    schoolId: req.user.schoolId,
+    targetId: savedPayment._id,
+    targetType: 'FeePayment',
+    details: { studentId, amountPaid, receiptNumber },
+    ipAddress: req.ip
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Payment recorded successfully',
+    data: { payment: savedPayment, receiptNumber }
+  });
+});
+
+/**
+ * @desc    Get all payments
+ * @route   GET /api/v1/fees/payments
+ * @access  Private (Admin, Accountant)
+ */
+const getPayments = asyncHandler(async (req, res) => {
+  const { studentId, academicSessionId, paymentMode, fromDate, toDate, page = 1, limit = 20 } = req.query;
+
+  const filters = { schoolId: req.user.schoolId };
+
+  if (studentId) filters.studentId = studentId;
+  if (academicSessionId) filters.academicSessionId = academicSessionId;
+  if (paymentMode) filters.paymentMode = paymentMode;
+  if (fromDate || toDate) {
+    filters.paymentDate = {};
+    if (fromDate) filters.paymentDate.$gte = new Date(fromDate);
+    if (toDate) filters.paymentDate.$lte = new Date(toDate);
+  }
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [payments, total] = await Promise.all([
+    FeePayment.find(filters)
+      .populate('studentId', 'name admissionNumber')
+      .populate('collectedBy', 'name')
+      .sort({ paymentDate: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    FeePayment.countDocuments(filters)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    count: payments.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: payments
+  });
+});
+
+/**
+ * @desc    Get fee dues
+ * @route   GET /api/v1/fees/dues
+ * @access  Private (Admin, Accountant)
+ */
+const getFeeDues = asyncHandler(async (req, res) => {
+  const { classId, sectionId, academicSessionId, status, page = 1, limit = 20 } = req.query;
+
+  const filters = {
+    schoolId: req.user.schoolId,
+    'feeItems.status': { $in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
+    isDeleted: { $ne: true }
+  };
+
+  if (classId) filters.classId = classId;
+  if (sectionId) filters.sectionId = sectionId;
+  if (academicSessionId) filters.academicYearId = academicSessionId;
+  if (status) filters['feeItems.status'] = status;
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [dues, total] = await Promise.all([
+    StudentFee.find(filters)
+      .populate('studentId', 'name admissionNumber')
+      .populate('classId', 'name')
+      .populate('sectionId', 'name')
+      .populate('academicYearId', 'name year')
+      .sort({ 'feeItems.dueDate': 1 })
+      .skip(skip)
+      .limit(limitNum),
+    StudentFee.countDocuments(filters)
+  ]);
+
+  const duesWithItems = dues.map(due => ({
+    ...due.toObject(),
+    feeItems: due.feeItems.filter(item =>
+      ['PENDING', 'PARTIAL', 'OVERDUE'].includes(item.status)
+    )
+  })).filter(due => due.feeItems.length > 0);
+
+  res.status(200).json({
+    success: true,
+    count: duesWithItems.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: duesWithItems
+  });
+});
+
+/**
+ * @desc    Process refund
+ * @route   POST /api/v1/fees/refund/:paymentId
+ * @access  Private (Admin, Accountant)
+ */
+const processRefund = asyncHandler(async (req, res) => {
+  const { paymentId } = req.params;
+  const { refundAmount, reason } = req.body;
+
+  const payment = await FeePayment.findById(paymentId);
+  if (!payment) {
+    return res.status(404).json({
+      success: false,
+      message: 'Payment not found'
+    });
+  }
+
+  await payment.processRefund(refundAmount, reason, req.user.id);
+
+  const studentFee = await StudentFee.findById(payment.studentFeeId);
+  if (studentFee) {
+    const feeItem = studentFee.getFeeItem(payment.feeItemId);
+    if (feeItem) {
+      feeItem.paidAmount -= refundAmount;
+      feeItem.dueAmount += refundAmount;
+      if (feeItem.paidAmount <= 0) {
+        feeItem.status = 'PENDING';
+      } else if (feeItem.paidAmount < feeItem.amount) {
+        feeItem.status = 'PARTIAL';
+      }
+      await studentFee.save();
+    }
+  }
+
+  await auditLogger.log({
+    action: 'FEE_REFUND',
+    userId: req.user.id,
+    userType: req.user.role,
+    schoolId: req.user.schoolId,
+    targetId: payment._id,
+    targetType: 'FeePayment',
+    details: { refundAmount, reason },
+    ipAddress: req.ip
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Refund processed successfully',
+    data: payment
+  });
+});
+
 module.exports = {
   createFeeStructure,
   getFeeStructures,
@@ -414,5 +786,12 @@ module.exports = {
   getStudentFeeDetails,
   getFeeReceipt,
   validateFeeStructure,
-  validatePayment
+  validatePayment,
+  // Phase 5 methods
+  generateStudentFees,
+  getStudentFees,
+  makePayment,
+  getPayments,
+  getFeeDues,
+  processRefund
 };
