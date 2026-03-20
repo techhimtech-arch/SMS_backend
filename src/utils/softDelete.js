@@ -24,7 +24,7 @@ const addSoftDeleteFilter = (schema) => {
 
   // Pre-aggregate hook to exclude soft-deleted documents
   schema.pre('aggregate', function() {
-    if (!this.getOptions().includeDeleted) {
+    if (!this.options.includeDeleted) {
       this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
     }
   });
