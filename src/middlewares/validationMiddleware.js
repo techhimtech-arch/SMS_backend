@@ -376,14 +376,24 @@ const validations = {
       .isLength({ min: 10, max: 5000 })
       .withMessage('Content must be between 10 and 5000 characters')
       .escape(),
+    body('message')
+      .optional()
+      .trim()
+      .isLength({ min: 10, max: 5000 })
+      .withMessage('Message must be between 10 and 5000 characters')
+      .escape(),
     body('type')
       .optional()
-      .isIn(['general', 'academic', 'sports', 'events', 'emergency', 'examination', 'holiday'])
+      .isIn(['general', 'academic', 'exam', 'urgent'])
       .withMessage('Invalid announcement type'),
     body('priority')
       .optional()
       .isIn(['low', 'medium', 'high', 'urgent'])
       .withMessage('Invalid priority level'),
+    body('status')
+      .optional()
+      .isIn(['draft', 'published', 'expired'])
+      .withMessage('Invalid status'),
     body('targetAudience')
       .isArray({ min: 1 })
       .withMessage('Target audience is required and must be an array'),
@@ -483,14 +493,24 @@ const validations = {
       .isLength({ min: 10, max: 5000 })
       .withMessage('Content must be between 10 and 5000 characters')
       .escape(),
+    body('message')
+      .optional()
+      .trim()
+      .isLength({ min: 10, max: 5000 })
+      .withMessage('Message must be between 10 and 5000 characters')
+      .escape(),
     body('type')
       .optional()
-      .isIn(['general', 'academic', 'sports', 'events', 'emergency', 'examination', 'holiday'])
+      .isIn(['general', 'academic', 'exam', 'urgent'])
       .withMessage('Invalid announcement type'),
     body('priority')
       .optional()
       .isIn(['low', 'medium', 'high', 'urgent'])
       .withMessage('Invalid priority level'),
+    body('status')
+      .optional()
+      .isIn(['draft', 'published', 'expired'])
+      .withMessage('Invalid status'),
     body('targetAudience')
       .optional()
       .isArray({ min: 1 })

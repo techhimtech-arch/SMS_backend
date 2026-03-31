@@ -16,13 +16,16 @@ const createAnnouncement = asyncHandler(async (req, res) => {
   const {
     title,
     content,
+    message,
     type,
     priority,
+    status: statusFromReq,
     targetAudience,
     targetClasses,
     targetSections,
     targetUsers,
     expiryDate,
+    publishDate,
     scheduledDate,
     deliveryMethods,
     tags,
@@ -31,10 +34,11 @@ const createAnnouncement = asyncHandler(async (req, res) => {
   } = req.body;
 
   // Validate required fields
-  if (!title || !content) {
+  const messageContent = message || content;
+  if (!title || !messageContent) {
     return res.status(400).json({
       success: false,
-      message: 'Title and content are required'
+      message: 'Title and content/message are required'
     });
   }
 
@@ -46,47 +50,52 @@ const createAnnouncement = asyncHandler(async (req, res) => {
   });
 
   // Validate target audience
-  if (targetAudience.includes('specific_classes') && (!targetClasses || targetClasses.length === 0)) {
+  if (targetAudience && targetAudience.includes('specific_classes') && (!targetClasses || targetClasses.length === 0)) {
     return res.status(400).json({
       success: false,
       message: 'Target classes are required when targeting specific classes'
     });
   }
 
-  if (targetAudience.includes('specific_sections') && (!targetSections || targetSections.length === 0)) {
+  if (targetAudience && targetAudience.includes('specific_sections') && (!targetSections || targetSections.length === 0)) {
     return res.status(400).json({
       success: false,
       message: 'Target sections are required when targeting specific sections'
     });
   }
 
-  // Determine status based on scheduled date
-  let status = 'draft';
+  // Convert lowercase to UPPERCASE for enum values
+  const convertToUpperCase = (value) => value ? value.toUpperCase() : value;
+  const finalType = convertToUpperCase(type) || 'GENERAL';
+  const finalPriority = convertToUpperCase(priority) || 'MEDIUM';
+  const finalStatus = convertToUpperCase(statusFromReq) || 'PUBLISHED';
+
+  // Determine status based on scheduled date if not explicitly provided
+  let status = statusFromReq ? finalStatus : 'DRAFT';
   if (scheduledDate) {
     const scheduleDate = new Date(scheduledDate);
     if (scheduleDate > new Date()) {
-      status = 'scheduled';
+      status = 'DRAFT';
     } else {
-      status = 'published';
+      status = 'PUBLISHED';
     }
-  } else {
-    status = 'published';
+  } else if (!statusFromReq) {
+    status = 'PUBLISHED';
   }
 
   const announcement = new Announcement({
     title,
-    content,
-    type: type || 'general',
-    priority: priority || 'medium',
+    message: messageContent,
+    type: finalType,
+    priority: finalPriority,
     status,
-    targetAudience,
+    targetAudience: targetAudience || ['all'],
     targetClasses,
     targetSections,
     targetUsers,
-    author: req.user.id,
-    authorName: req.user.name,
+    createdBy: req.user.id,
     expiryDate: expiryDate ? new Date(expiryDate) : null,
-    scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+    publishDate: publishDate ? new Date(publishDate) : new Date(),
     deliveryMethods: {
       email: deliveryMethods?.email || false,
       sms: deliveryMethods?.sms || false,
@@ -108,7 +117,7 @@ const createAnnouncement = asyncHandler(async (req, res) => {
     schoolId: req.user.schoolId,
     targetId: savedAnnouncement._id,
     targetType: 'Announcement',
-    details: { title, type, priority },
+    details: { title, type: finalType, priority: finalPriority, status },
     ipAddress: req.ip
   });
 
@@ -328,7 +337,7 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Check if user can update this announcement
-  if (announcement.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to update this announcement'
@@ -336,18 +345,29 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Don't allow updating published announcements if not admin
-  if (announcement.status === 'published' && req.user.role !== 'admin') {
+  if (announcement.status === 'PUBLISHED' && req.user.role !== 'admin') {
     return res.status(400).json({
       success: false,
       message: 'Cannot update published announcement'
     });
   }
 
-  const updates = req.body;
+  let updates = { ...req.body };
   let wasPublished = false;
 
+  // Convert enum values to uppercase
+  if (updates.type) updates.type = updates.type.toUpperCase();
+  if (updates.priority) updates.priority = updates.priority.toUpperCase();
+  if (updates.status) updates.status = updates.status.toUpperCase();
+  
+  // Handle content → message field mapping
+  if (updates.content) {
+    updates.message = updates.content;
+    delete updates.content;
+  }
+
   // Handle status changes
-  if (updates.status === 'published' && announcement.status === 'draft') {
+  if (updates.status === 'PUBLISHED' && announcement.status === 'DRAFT') {
     updates.publishDate = new Date();
     wasPublished = true;
   }
@@ -356,7 +376,7 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
     req.params.id,
     updates,
     { new: true, runValidators: true }
-  ).populate('author', 'name email');
+  ).populate('createdBy', 'name email');
 
   // Create notifications if announcement was published
   if (wasPublished) {
@@ -398,7 +418,7 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Check if user can delete this announcement
-  if (announcement.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to delete this announcement'

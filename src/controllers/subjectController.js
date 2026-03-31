@@ -6,7 +6,7 @@ const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 // Create a new subject
 const createSubject = async (req, res) => {
   try {
-    const { name, classId } = req.body;
+    const { name, classId, code, academicSessionId, description, department, credits, weeklyHours, isOptional } = req.body;
     const schoolId = req.user.schoolId;
 
     // Check if class exists and belongs to the school
@@ -21,7 +21,18 @@ const createSubject = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Subject already exists for this class' });
     }
 
-    const subject = new Subject({ name, classId, schoolId });
+    const subject = new Subject({ 
+      name, 
+      classId, 
+      schoolId,
+      code,
+      academicSessionId,
+      description,
+      department,
+      credits,
+      weeklyHours,
+      isOptional
+    });
     await subject.save();
 
     res.status(201).json({
