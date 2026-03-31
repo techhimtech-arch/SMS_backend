@@ -154,22 +154,22 @@ const getAnnouncements = asyncHandler(async (req, res) => {
 
   // If no status filter is provided, default to published announcements
   if (!status) {
-    query.status = 'published';
+    query.status = 'PUBLISHED';
   }
 
   // Filter by status (don't filter if status is "all")
   if (status && status !== 'all') {
-    query.status = status;
+    query.status = status.toUpperCase();
   }
 
   // Filter by type (don't filter if type is "all")
   if (type && type !== 'all') {
-    query.type = type;
+    query.type = type.toUpperCase();
   }
 
   // Filter by priority (don't filter if priority is "all")
   if (priority && priority !== 'all') {
-    query.priority = priority;
+    query.priority = priority.toUpperCase();
   }
 
   // Filter by target audience
@@ -177,16 +177,16 @@ const getAnnouncements = asyncHandler(async (req, res) => {
     query.targetAudience = targetAudience;
   }
 
-  // Filter by author
+  // Filter by creator
   if (author) {
-    query.author = author;
+    query.createdBy = author;
   }
 
-  // Search in title and content
+  // Search in title and message
   if (search) {
     query.$or = [
       { title: { $regex: search, $options: 'i' } },
-      { content: { $regex: search, $options: 'i' } },
+      { message: { $regex: search, $options: 'i' } },
       { tags: { $in: [new RegExp(search, 'i')] } }
     ];
   }
@@ -213,10 +213,8 @@ const getAnnouncements = asyncHandler(async (req, res) => {
 
   const [announcements, total] = await Promise.all([
     Announcement.find(query)
-      .populate('author', 'name email')
-      .populate('targetClasses.classId', 'name')
-      .populate('targetSections.sectionId', 'name')
-      .populate('targetUsers.userId', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('updatedBy', 'name email')
       .sort(sort)
       .skip(skip)
       .limit(limitNum),
@@ -254,11 +252,11 @@ const getMyAnnouncements = asyncHandler(async (req, res) => {
   let query;
   if (unreadOnly === 'true') {
     // Get unread announcements
-    query = Announcement.findForUser(req.user.id, user.role, user.classId, user.sectionId)
+    query = Announcement.findVisibleToUser(req.user.id, user.role, user.classId, user.sectionId)
       .where('readBy').nin([{ userId: req.user.id }]);
   } else {
     // Get all announcements
-    query = Announcement.findForUser(req.user.id, user.role, user.classId, user.sectionId);
+    query = Announcement.findVisibleToUser(req.user.id, user.role, user.classId, user.sectionId);
   }
 
   // Pagination
@@ -268,7 +266,7 @@ const getMyAnnouncements = asyncHandler(async (req, res) => {
 
   const [announcements, total] = await Promise.all([
     query.skip(skip).limit(limitNum),
-    Announcement.findForUser(req.user.id, user.role, user.classId, user.sectionId).countDocuments()
+    Announcement.findVisibleToUser(req.user.id, user.role, user.classId, user.sectionId).countDocuments()
   ]);
 
   res.status(200).json({
@@ -288,11 +286,8 @@ const getMyAnnouncements = asyncHandler(async (req, res) => {
  */
 const getAnnouncement = asyncHandler(async (req, res) => {
   const announcement = await Announcement.findById(req.params.id)
-    .populate('author', 'name email')
-    .populate('targetClasses.classId', 'name')
-    .populate('targetSections.sectionId', 'name')
-    .populate('targetUsers.userId', 'name email')
-    .populate('comments.userId', 'name email');
+    .populate('createdBy', 'name email')
+    .populate('updatedBy', 'name email');
 
   if (!announcement) {
     return res.status(404).json({
@@ -674,7 +669,7 @@ const checkAnnouncementAccess = async (announcement, user) => {
   if (user.role === 'admin') return true;
 
   // Author can access their own announcements
-  if (announcement.author.toString() === user._id.toString()) return true;
+  if (announcement.createdBy.toString() === user._id.toString()) return true;
 
   // Check target audience
   if (announcement.targetAudience.includes('all')) return true;
