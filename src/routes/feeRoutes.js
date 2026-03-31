@@ -629,7 +629,7 @@ router.get('/dues', authMiddleware, authorizeRoles('school_admin', 'accountant')
  *       200:
  *         description: Receipt retrieved successfully
  */
-router.get('/receipt/:paymentId', authMiddleware, authorizeRoles('school_admin', 'accountant', 'parent'), validatePaymentIdParam, getReceipt);
+router.get('/receipt/:paymentId', authMiddleware, authorizeRoles('school_admin', 'accountant', 'parent'), validatePaymentIdParam, getFeeReceipt);
 
 /**
  * @swagger
