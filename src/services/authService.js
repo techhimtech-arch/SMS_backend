@@ -13,8 +13,8 @@ const { logAuthEvent } = require('../middlewares/auditMiddleware');
 const logger = require('../utils/logger');
 
 // Token configuration
-const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived access token
-const REFRESH_TOKEN_EXPIRY_DAYS = 7; // Refresh token valid for 7 days
+const ACCESS_TOKEN_EXPIRY = '150m'; // Short-lived access token
+const REFRESH_TOKEN_EXPIRY_DAYS = 10; // Refresh token valid for 10 days
 
 class AuthService {
   /**
@@ -341,7 +341,7 @@ class AuthService {
         role: user.role 
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '10d' }
     );
   }
 
