@@ -14,12 +14,24 @@ const logger = require('../utils/logger');
 exports.getProfile = asyncHandler(async (req, res, next) => {
   // Get student profile
   const student = await StudentProfile.findOne({
-    _id: req.user.userId,
+    userId: req.user.userId,
     schoolId: req.user.schoolId,
   })
-    .populate('classId', 'name')
-    .populate('sectionId', 'name')
     .populate('parentUserId', 'name email');
+
+  if (!student) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
+  // Get current enrollment
+  const Enrollment = require('../models/Enrollment');
+  const currentEnrollment = await Enrollment.findOne({
+    studentId: student._id,
+    schoolId: req.user.schoolId,
+    status: 'enrolled'
+  })
+    .populate('classId', 'name')
+    .populate('sectionId', 'name');
 
   if (!student) {
     return next(new ErrorResponse('Student profile not found', 404));
@@ -51,8 +63,9 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
         address: student.address,
         bloodGroup: student.bloodGroup,
         emergencyContact: student.emergencyContact,
-        classId: student.classId,
-        sectionId: student.sectionId,
+        class: currentEnrollment?.classId || null,
+        section: currentEnrollment?.sectionId || null,
+        rollNumber: currentEnrollment?.rollNumber || null,
         parentUserId: student.parentUserId,
         admissionDate: student.admissionDate,
         isActive: student.isActive,
@@ -75,7 +88,7 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
   // Find and update student profile
   const student = await StudentProfile.findOneAndUpdate(
     {
-      _id: req.user.userId,
+      userId: req.user.userId,
       schoolId: req.user.schoolId,
     },
     {
@@ -208,7 +221,7 @@ exports.getFees = asyncHandler(async (req, res, next) => {
 
   // Get student info
   const student = await StudentProfile.findOne({
-    _id: req.user.userId,
+    userId: req.user.userId,
     schoolId: req.user.schoolId,
   })
     .populate('classId', 'name')
@@ -335,7 +348,7 @@ exports.getExams = asyncHandler(async (req, res, next) => {
 
   // Get student's class and section
   const student = await StudentProfile.findOne({
-    _id: req.user.userId,
+    userId: req.user.userId,
     schoolId: req.user.schoolId,
   });
 
@@ -343,10 +356,22 @@ exports.getExams = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Student profile not found', 404));
   }
 
+  // Get current enrollment
+  const Enrollment = require('../models/Enrollment');
+  const currentEnrollment = await Enrollment.findOne({
+    studentId: student._id,
+    schoolId: req.user.schoolId,
+    status: 'enrolled'
+  });
+
+  if (!currentEnrollment) {
+    return next(new ErrorResponse('Student not enrolled in any class', 404));
+  }
+
   // Build query based on status
   const query = {
     schoolId: req.user.schoolId,
-    classId: student.classId,
+    classId: currentEnrollment.classId,
     isActive: true,
   };
 
@@ -384,13 +409,21 @@ exports.getAnnouncements = asyncHandler(async (req, res, next) => {
 
   // Get student's class and section
   const student = await StudentProfile.findOne({
-    _id: req.user.userId,
+    userId: req.user.userId,
     schoolId: req.user.schoolId,
   });
 
   if (!student) {
     return next(new ErrorResponse('Student profile not found', 404));
   }
+
+  // Get current enrollment
+  const Enrollment = require('../models/Enrollment');
+  const currentEnrollment = await Enrollment.findOne({
+    studentId: student._id,
+    schoolId: req.user.schoolId,
+    status: 'enrolled'
+  });
 
   const now = new Date();
 
@@ -403,12 +436,12 @@ exports.getAnnouncements = asyncHandler(async (req, res, next) => {
       { targetAudience: 'all' },
       { 
         targetAudience: 'specific_classes',
-        targetClasses: { $in: [student.classId] }
+        targetClasses: { $in: [currentEnrollment?.classId] }
       },
       {
         targetAudience: 'specific_sections',
-        targetClasses: { $in: [student.classId] },
-        targetSections: { $in: [student.sectionId] }
+        targetClasses: { $in: [currentEnrollment?.classId] },
+        targetSections: { $in: [currentEnrollment?.sectionId] }
       },
       {
         targetAudience: 'specific_users',
@@ -455,17 +488,25 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
   const studentId = req.user.userId;
   const schoolId = req.user.schoolId;
 
-  // Get student profile
+  // Get student profile and current enrollment
   const student = await StudentProfile.findOne({
-    _id: studentId,
+    userId: studentId,
     schoolId,
-  })
-    .populate('classId', 'name')
-    .populate('sectionId', 'name');
+  });
 
   if (!student) {
     return next(new ErrorResponse('Student profile not found', 404));
   }
+
+  // Get current enrollment to get class and section
+  const Enrollment = require('../models/Enrollment');
+  const currentEnrollment = await Enrollment.findOne({
+    studentId: student._id,
+    schoolId,
+    status: 'enrolled'
+  })
+    .populate('classId', 'name')
+    .populate('sectionId', 'name');
 
   // Get stats in parallel
   const [
@@ -552,8 +593,8 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
       student: {
         _id: student._id,
         name: `${student.firstName} ${student.lastName}`,
-        class: student.classId?.name,
-        section: student.sectionId?.name,
+        class: currentEnrollment?.classId?.name || 'Not Enrolled',
+        section: currentEnrollment?.sectionId?.name || 'Not Enrolled',
         admissionNumber: student.admissionNumber,
       },
       attendance: {
