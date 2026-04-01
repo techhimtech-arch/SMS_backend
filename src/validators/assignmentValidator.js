@@ -129,6 +129,7 @@ const validateUpdateAssignment = [
 
   body('status')
     .optional()
+    .customSanitizer(value => value ? value.toUpperCase() : value)
     .isIn(['DRAFT', 'PUBLISHED', 'CLOSED'])
     .withMessage('Invalid status value'),
 
@@ -200,6 +201,7 @@ const validateListAssignments = [
 
   query('status')
     .optional()
+    .customSanitizer(value => value ? value.toUpperCase() : value)
     .isIn(['DRAFT', 'PUBLISHED', 'CLOSED'])
     .withMessage('Invalid status value'),
 

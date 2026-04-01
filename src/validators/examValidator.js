@@ -33,6 +33,7 @@ const validateCreateExam = [
   body('examType')
     .notEmpty()
     .withMessage('Exam type is required')
+    .customSanitizer(value => value.toUpperCase())
     .isIn(['UNIT_TEST', 'MID_TERM', 'FINAL_TERM', 'PRACTICAL', 'VIVA', 'QUIZ', 'ASSIGNMENT'])
     .withMessage('Invalid exam type'),
   
@@ -115,6 +116,7 @@ const validateUpdateExam = [
   
   body('examType')
     .optional()
+    .customSanitizer(value => value ? value.toUpperCase() : value)
     .isIn(['UNIT_TEST', 'MID_TERM', 'FINAL_TERM', 'PRACTICAL', 'VIVA', 'QUIZ', 'ASSIGNMENT'])
     .withMessage('Invalid exam type'),
   
@@ -164,6 +166,7 @@ const validateUpdateExam = [
   
   body('status')
     .optional()
+    .customSanitizer(value => value ? value.toUpperCase() : value)
     .isIn(['DRAFT', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'PUBLISHED', 'CANCELLED'])
     .withMessage('Invalid status'),
   
