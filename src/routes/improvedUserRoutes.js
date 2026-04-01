@@ -10,6 +10,7 @@ const {
   getMyProfile,
   updateMyProfile,
   changeMyPassword,
+  adminResetPassword,
   uploadProfileImage
 } = require('../controllers/improvedUserController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -605,6 +606,61 @@ router.get('/:id', authMiddleware, authorizeRoles('school_admin'), getUserById);
  *         description: Forbidden
  */
 router.put('/:id', authMiddleware, authorizeRoles('school_admin'), updateUser);
+
+/**
+ * @swagger
+ * /users/{id}/reset-password:
+ *   patch:
+ *     summary: Admin reset user password
+ *     tags: [Users (Improved)]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPassword
+ *             properties:
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 128
+ *                 description: New password (min 6 characters, at least one uppercase, lowercase, and number)
+ *                 example: "NewSecurePass123"
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset successfully"
+ *       400:
+ *         description: Validation error or trying to reset own password
+ *       403:
+ *         description: Forbidden (user from different school)
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.patch('/:id/reset-password', authMiddleware, authorizeRoles('school_admin'), adminResetPassword);
 
 /**
  * @swagger

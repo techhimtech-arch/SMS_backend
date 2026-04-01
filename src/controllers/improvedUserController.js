@@ -565,6 +565,75 @@ const changeMyPassword = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Admin reset user password
+ * @route    PATCH /api/v1/users/:id/reset-password
+ * @access   Private/School Admin
+ */
+const adminResetPassword = asyncHandler(async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const userId = req.params.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user belongs to the same school
+    if (user.schoolId.toString() !== req.user.schoolId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. User belongs to different school.'
+      });
+    }
+
+    // Prevent admin from resetting their own password through this endpoint
+    if (userId === req.user.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Use change-password endpoint to update your own password'
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    await User.findByIdAndUpdate(userId, {
+      password: hashedPassword
+    });
+
+    logger.info('Admin reset user password successfully', {
+      adminId: req.user.userId,
+      targetUserId: userId,
+      targetUserEmail: user.email
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    logger.error('Failed to reset user password', {
+      error: error.message,
+      adminId: req.user.userId,
+      targetUserId: req.params.id
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
+      error: error.message
+    });
+  }
+});
+
+/**
  * @desc    Upload profile image
  * @route    POST /api/v1/users/profile-image
  * @access   Private
@@ -640,6 +709,12 @@ module.exports = {
     updateUser
   ],
   deleteUser: [commonValidations.objectId('id'), handleValidationErrors, deleteUser],
+  adminResetPassword: [
+    commonValidations.objectId('id'),
+    commonValidations.password('newPassword'),
+    handleValidationErrors,
+    adminResetPassword
+  ],
   getUserStats,
   getMyProfile,
   updateMyProfile: [
