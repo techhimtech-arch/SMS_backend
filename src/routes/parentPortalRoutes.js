@@ -8,7 +8,12 @@ const {
 const {
   getParentDashboard,
   getStudentDetail,
-  getLinkedStudents
+  getLinkedStudents,
+  getChildAttendance,
+  getChildFees,
+  getChildResults,
+  getChildAnnouncements,
+  getChildTimetable
 } = require('../controllers/parentPortalController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
@@ -170,5 +175,142 @@ router.get('/fees', authMiddleware, authorizeRoles('parent'), getFees);
  *         description: No linked student found
  */
 router.get('/results', authMiddleware, authorizeRoles('parent'), getResults);
+
+// =============================================
+// Child-Specific Data Access Routes
+// With ParentStudentMapping access verification
+// =============================================
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/attendance:
+ *   get:
+ *     summary: Get specific child's attendance records
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Child's attendance with summary
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/attendance', authMiddleware, authorizeRoles('parent'), getChildAttendance);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/fees:
+ *   get:
+ *     summary: Get specific child's fee details
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Child's fee information
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/fees', authMiddleware, authorizeRoles('parent'), getChildFees);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/results:
+ *   get:
+ *     summary: Get specific child's exam results
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: examId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Child's exam results
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/results', authMiddleware, authorizeRoles('parent'), getChildResults);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/announcements:
+ *   get:
+ *     summary: Get announcements for child's class
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Class and school announcements
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/announcements', authMiddleware, authorizeRoles('parent'), getChildAnnouncements);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/timetable:
+ *   get:
+ *     summary: Get child's class timetable
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Class timetable
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/timetable', authMiddleware, authorizeRoles('parent'), getChildTimetable);
 
 module.exports = router;

@@ -295,8 +295,245 @@ const getLinkedStudents = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get specific child's attendance
+ * @route   GET /api/v1/parent/children/:studentId/attendance
+ * @access  Private (Parent only - verified parent of student)
+ */
+const getChildAttendance = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const { startDate, endDate } = req.query;
+  const parentId = req.user.id;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(parentId, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student info
+  const student = await Student.findById(studentId).select('name admissionNumber');
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Build query for attendance
+  const query = { studentId };
+  if (startDate && endDate) {
+    query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+  }
+
+  // Get attendance records
+  const attendance = await Attendance.find(query).sort({ date: -1 });
+
+  // Calculate summary
+  const present = attendance.filter(a => a.status === 'present').length;
+  const absent = attendance.filter(a => a.status === 'absent').length;
+  const late = attendance.filter(a => a.status === 'late').length;
+  const total = attendance.length;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
+      summary: {
+        total,
+        present,
+        absent,
+        late,
+        percentage: total > 0 ? Math.round((present / total) * 100) : 0
+      },
+      records: attendance
+    }
+  });
+});
+
+/**
+ * @desc    Get specific child's fees and payment status
+ * @route   GET /api/v1/parent/children/:studentId/fees
+ * @access  Private (Parent only - verified parent of student)
+ */
+const getChildFees = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const parentId = req.user.id;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(parentId, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student info
+  const student = await Student.findById(studentId).select('name admissionNumber');
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Get fee details
+  const fees = await StudentFee.findOne({ studentId })
+    .populate('academicYearId', 'name year');
+
+  res.status(200).json({
+    success: true,
+    data: {
+      student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
+      fees: fees || {
+        totalAmount: 0,
+        paidAmount: 0,
+        balanceAmount: 0,
+        dueAmount: 0
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Get specific child's exam results
+ * @route   GET /api/v1/parent/children/:studentId/results
+ * @access  Private (Parent only - verified parent of student)
+ */
+const getChildResults = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const { examId } = req.query;
+  const parentId = req.user.id;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(parentId, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student info
+  const student = await Student.findById(studentId).select('name admissionNumber');
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Build query
+  const query = { studentId };
+  if (examId) query.examId = examId;
+
+  // Get results
+  const results = await Result.find(query)
+    .populate('examId', 'name examDate')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
+      results
+    }
+  });
+});
+
+/**
+ * @desc    Get specific child's announcements
+ * @route   GET /api/v1/parent/children/:studentId/announcements
+ * @access  Private (Parent only - verified parent of student)
+ */
+const getChildAnnouncements = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const parentId = req.user.id;
+  const schoolId = req.user.schoolId;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(parentId, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student info with class
+  const student = await Student.findById(studentId)
+    .select('name admissionNumber classId sectionId')
+    .populate('classId', '_id name');
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  // Get announcements for school and class
+  const announcements = await Announcement.find({
+    schoolId,
+    status: 'published',
+    $or: [
+      { targetAudience: 'all' },
+      { targetAudience: 'parents' },
+      { classId: student.classId?._id }
+    ],
+    $or: [
+      { expiryDate: { $exists: false } },
+      { expiryDate: { $gte: new Date() } }
+    ]
+  }).sort({ publishDate: -1 }).limit(20);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
+      announcements
+    }
+  });
+});
+
+/**
+ * @desc    Get specific child's timetable
+ * @route   GET /api/v1/parent/children/:studentId/timetable
+ * @access  Private (Parent only - verified parent of student)
+ */
+const getChildTimetable = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const parentId = req.user.id;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(parentId, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student info with class
+  const student = await Student.findById(studentId)
+    .select('name admissionNumber classId')
+    .populate({
+      path: 'classId',
+      select: 'name',
+      populate: { path: 'timetable' }
+    });
+  if (!student) {
+    return res.status(404).json({ success: false, message: 'Student not found' });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
+      class: student.classId,
+      timetable: student.classId?.timetable || []
+    }
+  });
+});
+
 module.exports = {
   getParentDashboard,
   getStudentDetail,
-  getLinkedStudents
+  getLinkedStudents,
+  getChildAttendance,
+  getChildFees,
+  getChildResults,
+  getChildAnnouncements,
+  getChildTimetable
 };

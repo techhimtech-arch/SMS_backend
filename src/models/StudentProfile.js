@@ -37,6 +37,11 @@ const studentProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    linkedParentIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
     address: {
       type: String,
     },
