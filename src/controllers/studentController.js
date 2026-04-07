@@ -184,55 +184,55 @@ const getImportTemplate = asyncHandler(async (req, res) => {
 });
 
 // Student Dashboard
-exports.getStudentDashboard = asyncHandler(async (req, res) => {
+const getStudentDashboard = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentDashboard(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Attendance
-exports.getStudentAttendance = asyncHandler(async (req, res) => {
+const getStudentAttendance = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentAttendance(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Exam Results
-exports.getStudentExamResults = asyncHandler(async (req, res) => {
+const getStudentExamResults = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentExamResults(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Fee Details
-exports.getStudentFeeDetails = asyncHandler(async (req, res) => {
+const getStudentFeeDetails = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentFeeDetails(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Study Materials
-exports.getStudyMaterials = asyncHandler(async (req, res) => {
+const getStudyMaterials = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudyMaterials(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Assignments
-exports.getStudentAssignments = asyncHandler(async (req, res) => {
+const getStudentAssignments = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentAssignments(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Announcements
-exports.getStudentAnnouncements = asyncHandler(async (req, res) => {
+const getStudentAnnouncements = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentAnnouncements(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Timetable
-exports.getStudentTimetable = asyncHandler(async (req, res) => {
+const getStudentTimetable = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentTimetable(req.user);
   res.status(200).json({ success: true, data });
 });
 
 // Certificates
-exports.getStudentCertificates = asyncHandler(async (req, res) => {
+const getStudentCertificates = asyncHandler(async (req, res) => {
   const data = await studentService.fetchStudentCertificates(req.user);
   res.status(200).json({ success: true, data });
 });

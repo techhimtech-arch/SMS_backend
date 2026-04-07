@@ -1,5 +1,5 @@
 const express = require('express');
-const { createStudent, getStudents, getStudentById, updateStudent, deleteStudent, bulkImportStudents, getImportTemplate } = require('../controllers/studentController');
+const { createStudent, getStudents, getStudentById, updateStudent, deleteStudent, bulkImportStudents, getImportTemplate, getStudentDashboard, getStudentAttendance, getStudentExamResults, getStudentFeeDetails, getStudyMaterials, getStudentAssignments, getStudentAnnouncements, getStudentTimetable, getStudentCertificates } = require('../controllers/studentController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
 const { validateCreateStudent, validateUpdateStudent } = require('../validators/studentValidator');
