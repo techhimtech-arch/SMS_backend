@@ -425,6 +425,14 @@ const getAdmittedStudents = asyncHandler(async (req, res) => {
       ];
     }
 
+    if (req.user.role === 'teacher') {
+      query.classId = { $in: req.user.assignedClasses };
+    } else if (req.user.role === 'parent') {
+      query._id = { $in: req.user.linkedStudentIds };
+    } else if (req.user.role === 'student') {
+      query._id = req.user.userId;
+    }
+
     const skip = (page - 1) * limit;
 
     // Get students with population

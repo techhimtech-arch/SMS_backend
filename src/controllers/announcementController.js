@@ -211,6 +211,12 @@ const getAnnouncements = asyncHandler(async (req, res) => {
   const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
 
+  // Add role-based filtering
+  if (req.user.role !== 'admin') {
+    query.schoolId = req.user.schoolId;
+    query.visibleToRoles = { $in: [req.user.role] };
+  }
+
   const [announcements, total] = await Promise.all([
     Announcement.find(query)
       .populate('createdBy', 'name email')

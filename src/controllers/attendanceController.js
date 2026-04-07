@@ -290,6 +290,14 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
     if (studentId) query.studentId = studentId;
   }
 
+  if (req.user.role === 'teacher') {
+    query.classId = { $in: req.user.assignedClasses };
+  } else if (req.user.role === 'student') {
+    query.studentId = req.user.userId;
+  } else if (req.user.role === 'parent') {
+    query.studentId = { $in: req.user.linkedStudentIds };
+  }
+
   const attendance = await Attendance.find(query)
     .populate('studentId', 'firstName lastName admissionNumber')
     .populate('classId', 'name')
