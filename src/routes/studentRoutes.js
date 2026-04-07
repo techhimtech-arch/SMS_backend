@@ -260,4 +260,31 @@ router.get('/import/template', authMiddleware, authorizeRoles('school_admin'), g
  */
 router.post('/import/bulk', authMiddleware, authorizeRoles('school_admin'), handleCSVUpload, bulkImportStudents);
 
+// Student Dashboard
+router.get('/dashboard', authorizeRoles('student'), getStudentDashboard);
+
+// Attendance
+router.get('/attendance', authorizeRoles('student'), getStudentAttendance);
+
+// Exam Results
+router.get('/exam-results', authorizeRoles('student'), getStudentExamResults);
+
+// Fee Details
+router.get('/fees', authorizeRoles('student'), getStudentFeeDetails);
+
+// Study Materials
+router.get('/study-materials', authorizeRoles('student'), getStudyMaterials);
+
+// Assignments
+router.get('/assignments', authorizeRoles('student'), getStudentAssignments);
+
+// Announcements
+router.get('/announcements', authorizeRoles('student'), getStudentAnnouncements);
+
+// Timetable
+router.get('/timetable', authorizeRoles('student'), getStudentTimetable);
+
+// Certificates
+router.get('/certificates', authorizeRoles('student'), getStudentCertificates);
+
 module.exports = router;

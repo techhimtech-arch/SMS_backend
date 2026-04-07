@@ -5,6 +5,15 @@ const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const emailService = require('./emailService');
+const StudentProfile = require('../models/StudentProfile');
+const Attendance = require('../models/Attendance');
+const ExamResult = require('../models/ExamResult');
+const Fee = require('../models/Fee');
+const StudyMaterial = require('../models/StudyMaterial');
+const Assignment = require('../models/Assignment');
+const Announcement = require('../models/Announcement');
+const Timetable = require('../models/Timetable');
+const Certificate = require('../models/Certificate');
 
 class StudentService {
   /**
@@ -271,3 +280,63 @@ class StudentService {
 }
 
 module.exports = new StudentService();
+
+// Fetch Student Dashboard Data
+exports.fetchStudentDashboard = async (user) => {
+  const student = await StudentProfile.findOne({ userId: user.userId, schoolId: user.schoolId })
+    .populate('currentEnrollment.classId', 'name')
+    .populate('currentEnrollment.sectionId', 'name');
+
+  const attendanceSummary = await Attendance.getSummary(user.userId);
+  const upcomingExams = await ExamResult.getUpcomingExams(user.userId);
+  const pendingAssignments = await Assignment.getPending(user.userId);
+  const recentAnnouncements = await Announcement.getRecent(user.schoolId, user.userId);
+
+  return {
+    profile: student,
+    attendanceSummary,
+    upcomingExams,
+    pendingAssignments,
+    recentAnnouncements,
+  };
+};
+
+// Fetch Attendance Data
+exports.fetchStudentAttendance = async (user) => {
+  return Attendance.getStudentAttendance(user.userId);
+};
+
+// Fetch Exam Results
+exports.fetchStudentExamResults = async (user) => {
+  return ExamResult.getStudentResults(user.userId);
+};
+
+// Fetch Fee Details
+exports.fetchStudentFeeDetails = async (user) => {
+  return Fee.getStudentFeeDetails(user.userId);
+};
+
+// Fetch Study Materials
+exports.fetchStudyMaterials = async (user) => {
+  return StudyMaterial.getMaterialsForClass(user.classId);
+};
+
+// Fetch Assignments
+exports.fetchStudentAssignments = async (user) => {
+  return Assignment.getAssignmentsForStudent(user.userId);
+};
+
+// Fetch Announcements
+exports.fetchStudentAnnouncements = async (user) => {
+  return Announcement.getAnnouncementsForStudent(user.userId, user.schoolId);
+};
+
+// Fetch Timetable
+exports.fetchStudentTimetable = async (user) => {
+  return Timetable.getTimetableForStudent(user.classId);
+};
+
+// Fetch Certificates
+exports.fetchStudentCertificates = async (user) => {
+  return Certificate.getCertificatesForStudent(user.userId);
+};

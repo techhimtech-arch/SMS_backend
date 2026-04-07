@@ -33,3 +33,139 @@ module.exports = {
   swaggerUi,
   swaggerSpec,
 };
+
+// Student APIs
+/**
+ * @swagger
+ * /api/v1/students/dashboard:
+ *   get:
+ *     summary: Get student dashboard data
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched student dashboard data
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/attendance:
+ *   get:
+ *     summary: Get student attendance data
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched attendance data
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/exam-results:
+ *   get:
+ *     summary: Get student exam results
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched exam results
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/fees:
+ *   get:
+ *     summary: Get student fee details
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched fee details
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/study-materials:
+ *   get:
+ *     summary: Get study materials for student
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched study materials
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/assignments:
+ *   get:
+ *     summary: Get student assignments
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched assignments
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/announcements:
+ *   get:
+ *     summary: Get student announcements
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched announcements
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/timetable:
+ *   get:
+ *     summary: Get student timetable
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched timetable
+ *       403:
+ *         description: Unauthorized access
+ */
+
+/**
+ * @swagger
+ * /api/v1/students/certificates:
+ *   get:
+ *     summary: Get student certificates
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched certificates
+ *       403:
+ *         description: Unauthorized access
+ */
