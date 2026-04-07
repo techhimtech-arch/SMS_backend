@@ -67,7 +67,7 @@ const admitStudent = async (admissionData, schoolId, adminId) => {
           classId: admissionData.classId,
           sectionId: admissionData.sectionId,
           rollNumber: admissionData.rollNumber,
-          status: 'enrolled',
+          status: 'ENROLLED',
           schoolId: schoolId,
           admissionDate: new Date(),
           createdBy: adminId
