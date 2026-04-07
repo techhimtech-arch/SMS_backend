@@ -279,64 +279,127 @@ class StudentService {
   }
 }
 
-module.exports = new StudentService();
+// Export class instance and utility functions
+module.exports = Object.assign(new StudentService(), {
+  fetchStudentDashboard: async (user) => {
+    const student = await StudentProfile.findOne({ userId: user.userId, schoolId: user.schoolId })
+      .populate('currentEnrollment.classId', 'name')
+      .populate('currentEnrollment.sectionId', 'name');
 
-// Fetch Student Dashboard Data
-exports.fetchStudentDashboard = async (user) => {
-  const student = await StudentProfile.findOne({ userId: user.userId, schoolId: user.schoolId })
-    .populate('currentEnrollment.classId', 'name')
-    .populate('currentEnrollment.sectionId', 'name');
+    const attendance = await Attendance.find({ studentId: user.userId }).select('date status');
+    const upcomingExams = await ExamResult.find({ studentId: user.userId, examDate: { $gte: new Date() } })
+      .select('subject examDate totalMarks').limit(5);
+    const pendingAssignments = await Assignment.find({ studentId: user.userId, status: { $ne: 'completed' } })
+      .select('title deadline subject').limit(5);
+    const recentAnnouncements = await Announcement.find({ schoolId: user.schoolId })
+      .select('title message createdAt').limit(5).sort({ createdAt: -1 });
 
-  const attendanceSummary = await Attendance.getSummary(user.userId);
-  const upcomingExams = await ExamResult.getUpcomingExams(user.userId);
-  const pendingAssignments = await Assignment.getPending(user.userId);
-  const recentAnnouncements = await Announcement.getRecent(user.schoolId, user.userId);
+    return {
+      profile: student,
+      attendanceSummary: { total: attendance.length, present: attendance.filter(a => a.status === 'present').length },
+      upcomingExams,
+      pendingAssignments,
+      recentAnnouncements,
+    };
+  },
 
-  return {
-    profile: student,
-    attendanceSummary,
-    upcomingExams,
-    pendingAssignments,
-    recentAnnouncements,
-  };
-};
+  fetchStudentAttendance: async (user) => {
+    const attendance = await Attendance.find({ studentId: user.userId })
+      .populate('classId', 'name')
+      .populate('sectionId', 'name')
+      .populate('subjectId', 'name')
+      .sort({ date: -1 });
 
-// Fetch Attendance Data
-exports.fetchStudentAttendance = async (user) => {
-  return Attendance.getStudentAttendance(user.userId);
-};
+    return {
+      studentId: user.userId,
+      dailyAttendance: attendance,
+      monthlySummary: {
+        totalDays: attendance.length,
+        presentDays: attendance.filter(a => a.status === 'present').length,
+        absentDays: attendance.filter(a => a.status === 'absent').length
+      }
+    };
+  },
 
-// Fetch Exam Results
-exports.fetchStudentExamResults = async (user) => {
-  return ExamResult.getStudentResults(user.userId);
-};
+  fetchStudentExamResults: async (user) => {
+    const results = await ExamResult.find({ studentId: user.userId })
+      .populate('subjectId', 'name')
+      .sort({ examDate: -1 });
 
-// Fetch Fee Details
-exports.fetchStudentFeeDetails = async (user) => {
-  return Fee.getStudentFeeDetails(user.userId);
-};
+    const totalMarks = results.reduce((sum, r) => sum + r.marksObtained, 0);
+    const maxMarks = results.reduce((sum, r) => sum + r.totalMarks, 0);
 
-// Fetch Study Materials
-exports.fetchStudyMaterials = async (user) => {
-  return StudyMaterial.getMaterialsForClass(user.classId);
-};
+    return {
+      studentId: user.userId,
+      results,
+      overallPerformance: {
+        totalMarks: maxMarks,
+        marksObtained: totalMarks,
+        averagePercentage: maxMarks > 0 ? ((totalMarks / maxMarks) * 100).toFixed(2) : 0
+      }
+    };
+  },
 
-// Fetch Assignments
-exports.fetchStudentAssignments = async (user) => {
-  return Assignment.getAssignmentsForStudent(user.userId);
-};
+  fetchStudentFeeDetails: async (user) => {
+    const fee = await Fee.findOne({ studentId: user.userId });
+    return fee || { studentId: user.userId, totalFee: 0, paidAmount: 0, dueAmount: 0, installments: [] };
+  },
 
-// Fetch Announcements
-exports.fetchStudentAnnouncements = async (user) => {
-  return Announcement.getAnnouncementsForStudent(user.userId, user.schoolId);
-};
+  fetchStudyMaterials: async (user) => {
+    const student = await StudentProfile.findOne({ userId: user.userId });
+    const classId = student?.currentEnrollment?.classId;
+    if (!classId) return { materials: [] };
+    
+    const materials = await StudyMaterial.find({ classId })
+      .populate('subjectId', 'name')
+      .populate('uploadedBy', 'name')
+      .sort({ createdAt: -1 });
 
-// Fetch Timetable
-exports.fetchStudentTimetable = async (user) => {
-  return Timetable.getTimetableForStudent(user.classId);
-};
+    return { classId, materials };
+  },
 
-// Fetch Certificates
-exports.fetchStudentCertificates = async (user) => {
-  return Certificate.getCertificatesForStudent(user.userId);
-};
+  fetchStudentAssignments: async (user) => {
+    const assignments = await Assignment.find({ studentId: user.userId })
+      .populate('subjectId', 'name')
+      .sort({ deadline: 1 });
+
+    return {
+      studentId: user.userId,
+      pendingAssignments: assignments.filter(a => a.status !== 'completed'),
+      submittedAssignments: assignments.filter(a => a.status === 'completed')
+    };
+  },
+
+  fetchStudentAnnouncements: async (user) => {
+    const student = await StudentProfile.findOne({ userId: user.userId });
+    const classId = student?.currentEnrollment?.classId;
+
+    const announcements = await Announcement.find({
+      $or: [
+        { schoolId: user.schoolId },
+        classId ? { classId } : { _id: null }
+      ]
+    }).populate('createdBy', 'name').sort({ createdAt: -1 }).limit(20);
+
+    return { studentId: user.userId, announcements };
+  },
+
+  fetchStudentTimetable: async (user) => {
+    const student = await StudentProfile.findOne({ userId: user.userId });
+    const classId = student?.currentEnrollment?.classId;
+    if (!classId) return { dailyTimetable: [] };
+
+    const timetable = await Timetable.findOne({ classId })
+      .populate('periods.subjectId', 'name')
+      .populate('periods.teacherId', 'name');
+
+    return { classId, dailyTimetable: timetable?.periods || [] };
+  },
+
+  fetchStudentCertificates: async (user) => {
+    const certificates = await Certificate.find({ studentId: user.userId })
+      .sort({ issuedDate: -1 });
+
+    return { studentId: user.userId, certificates };
+  }
+});

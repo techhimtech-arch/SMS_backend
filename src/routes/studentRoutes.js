@@ -101,6 +101,21 @@ router.post(
  */
 router.get('/', authMiddleware, getStudents);
 
+// Student Utility Routes (must come BEFORE /:id route)
+router.get('/dashboard', authMiddleware, authorizeRoles('student'), getStudentDashboard);
+router.get('/attendance', authMiddleware, authorizeRoles('student'), getStudentAttendance);
+router.get('/exam-results', authMiddleware, authorizeRoles('student'), getStudentExamResults);
+router.get('/fees', authMiddleware, authorizeRoles('student'), getStudentFeeDetails);
+router.get('/study-materials', authMiddleware, authorizeRoles('student'), getStudyMaterials);
+router.get('/assignments', authMiddleware, authorizeRoles('student'), getStudentAssignments);
+router.get('/announcements', authMiddleware, authorizeRoles('student'), getStudentAnnouncements);
+router.get('/timetable', authMiddleware, authorizeRoles('student'), getStudentTimetable);
+router.get('/certificates', authMiddleware, authorizeRoles('student'), getStudentCertificates);
+
+// Import routes
+router.get('/import/template', authMiddleware, authorizeRoles('school_admin'), getImportTemplate);
+router.post('/import/bulk', authMiddleware, authorizeRoles('school_admin'), handleCSVUpload, bulkImportStudents);
+
 /**
  * @swagger
  * /students/{id}:
@@ -259,32 +274,5 @@ router.get('/import/template', authMiddleware, authorizeRoles('school_admin'), g
  *         description: Invalid CSV or validation errors
  */
 router.post('/import/bulk', authMiddleware, authorizeRoles('school_admin'), handleCSVUpload, bulkImportStudents);
-
-// Student Dashboard
-router.get('/dashboard', authorizeRoles('student'), getStudentDashboard);
-
-// Attendance
-router.get('/attendance', authorizeRoles('student'), getStudentAttendance);
-
-// Exam Results
-router.get('/exam-results', authorizeRoles('student'), getStudentExamResults);
-
-// Fee Details
-router.get('/fees', authorizeRoles('student'), getStudentFeeDetails);
-
-// Study Materials
-router.get('/study-materials', authorizeRoles('student'), getStudyMaterials);
-
-// Assignments
-router.get('/assignments', authorizeRoles('student'), getStudentAssignments);
-
-// Announcements
-router.get('/announcements', authorizeRoles('student'), getStudentAnnouncements);
-
-// Timetable
-router.get('/timetable', authorizeRoles('student'), getStudentTimetable);
-
-// Certificates
-router.get('/certificates', authorizeRoles('student'), getStudentCertificates);
 
 module.exports = router;
