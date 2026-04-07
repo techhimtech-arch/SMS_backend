@@ -2,6 +2,7 @@ const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
+const Enrollment = require('../models/Enrollment');
 
 // @desc    Assign class teacher to a class+section
 // @route   POST /api/class-teacher/assign
@@ -177,4 +178,23 @@ exports.getClassTeacherByClass = asyncHandler(async (req, res, next) => {
     success: true,
     data: assignment
   });
+});
+
+// Assign or Change Roll Number
+exports.assignRollNumber = asyncHandler(async (req, res) => {
+  const { enrollmentId } = req.params;
+  const { rollNumber } = req.body;
+
+  // Find the enrollment
+  const enrollment = await Enrollment.findOne({ _id: enrollmentId, classId: { $in: req.user.assignedClasses } });
+
+  if (!enrollment) {
+    return res.status(404).json({ success: false, message: 'Enrollment not found or unauthorized' });
+  }
+
+  // Update roll number
+  enrollment.rollNumber = rollNumber;
+  await enrollment.save();
+
+  res.status(200).json({ success: true, message: 'Roll number updated successfully', data: enrollment });
 });

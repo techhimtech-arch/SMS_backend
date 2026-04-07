@@ -25,7 +25,7 @@ const enrollmentSchema = new mongoose.Schema(
     },
     rollNumber: {
       type: String,
-      required: true,
+      default: null,
       trim: true,
       maxlength: [20, 'Roll number cannot exceed 20 characters']
     },

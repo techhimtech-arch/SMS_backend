@@ -5,7 +5,8 @@ const {
   getMyClassTeacherClasses,
   checkClassTeacher,
   removeClassTeacher,
-  getClassTeacherByClass
+  getClassTeacherByClass,
+  assignRollNumber
 } = require('../controllers/classTeacherController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
@@ -195,5 +196,8 @@ router.delete(
   authorizeRoles('school_admin'),
   removeClassTeacher
 );
+
+// Assign or Change Roll Number
+router.patch('/enrollments/:enrollmentId/roll-number', authorizeRoles('teacher'), assignRollNumber);
 
 module.exports = router;
