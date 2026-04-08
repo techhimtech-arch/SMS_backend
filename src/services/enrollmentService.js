@@ -1,7 +1,15 @@
 const Enrollment = require('../models/Enrollment');
-const Student = require('../models/Student');
+const StudentProfile = require('../models/StudentProfile');
 const AcademicYear = require('../models/AcademicYear');
-const { apiResponse } = require('../utils/apiResponse');
+const logger = require('../utils/logger');
+
+const apiResponse = {
+  success: (message, data) => ({ success: true, statusCode: 200, message, data }),
+  created: (message, data) => ({ success: true, statusCode: 201, message, data }),
+  error: (message, error) => ({ success: false, statusCode: 500, message, error }),
+  notFound: (message) => ({ success: false, statusCode: 404, message }),
+  validationError: (message) => ({ success: false, statusCode: 400, message })
+};
 
 class EnrollmentService {
   // Enroll student in academic year
@@ -9,15 +17,25 @@ class EnrollmentService {
     try {
       const { studentId, academicYearId, classId, sectionId, rollNumber, schoolId } = enrollmentData;
 
-      // Check if student exists
-      const student = await Student.findById(studentId);
-      if (!student) {
-        return apiResponse.notFound('Student not found');
+      logger.info(`Enrollment attempt - StudentID: ${studentId}, AcademicYearID: ${academicYearId}, SchoolID: ${schoolId}`);
+
+      // Check if student profile exists
+      const studentProfile = await StudentProfile.findById(studentId);
+      if (!studentProfile) {
+        logger.warn(`Student profile not found - StudentID: ${studentId}. Checking available students for school: ${schoolId}`);
+        // Log total count of students for debugging
+        const totalStudents = await StudentProfile.countDocuments();
+        const schoolStudents = await StudentProfile.countDocuments({ schoolId });
+        logger.info(`Total students in DB: ${totalStudents}, Students in school ${schoolId}: ${schoolStudents}`);
+        return apiResponse.notFound('Student profile not found');
       }
+
+      logger.info(`Student found - ${studentProfile.firstName} ${studentProfile.lastName} (${studentProfile.admissionNumber})`);
 
       // Check if academic year exists
       const academicYear = await AcademicYear.findById(academicYearId);
       if (!academicYear) {
+        logger.warn(`Academic year not found - AcademicYearID: ${academicYearId}`);
         return apiResponse.notFound('Academic year not found');
       }
 
@@ -25,26 +43,30 @@ class EnrollmentService {
       const existingEnrollment = await Enrollment.findOne({
         studentId,
         academicYearId,
-        status: 'enrolled'
+        status: 'ENROLLED'
       });
 
       if (existingEnrollment) {
+        logger.info(`Student already enrolled - StudentID: ${studentId}, AcademicYearID: ${academicYearId}`);
         return apiResponse.validationError('Student already enrolled for this academic year');
       }
 
       // Create enrollment
       const enrollment = await Enrollment.create({
-        ...enrollmentData,
-        enrollmentDate: new Date(),
+        studentId,
+        academicYearId,
+        classId,
+        sectionId,
+        rollNumber,
+        schoolId,
+        status: 'ENROLLED',
+        admissionDate: new Date()
       });
 
-      // Update student's current class/section for backward compatibility
-      student.classId = classId;
-      student.sectionId = sectionId;
-      await student.save();
-
+      logger.info(`Student enrolled successfully - StudentID: ${studentId}, EnrollmentID: ${enrollment._id}`);
       return apiResponse.created('Student enrolled successfully', enrollment);
     } catch (error) {
+      logger.error(`Enrollment error: ${error.message}`, { stack: error.stack });
       return apiResponse.error('Enrollment failed', error.message);
     }
   }
@@ -105,13 +127,14 @@ class EnrollmentService {
         sectionId,
         academicYearId,
         schoolId,
-        status: 'enrolled'
+        status: 'ENROLLED'
       })
       .populate('studentId', 'firstName lastName admissionNumber')
       .sort({ rollNumber: 1 });
 
       return apiResponse.success('Class enrollments retrieved', enrollments);
     } catch (error) {
+      logger.error(`Failed to get class enrollments: ${error.message}`, { stack: error.stack });
       return apiResponse.error('Failed to get class enrollments', error.message);
     }
   }
