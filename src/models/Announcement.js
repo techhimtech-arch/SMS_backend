@@ -42,6 +42,15 @@ const announcementSchema = new mongoose.Schema({
     enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
     default: 'MEDIUM'
   },
+  schoolId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'School'
+  },
+  visibleToRoles: [{
+    type: String,
+    enum: ['superadmin', 'school_admin', 'teacher', 'accountant', 'parent', 'student'],
+    default: ['superadmin', 'school_admin', 'teacher', 'accountant', 'parent', 'student']
+  }],
   attachments: [{
     filename: String,
     originalName: String,
@@ -102,6 +111,8 @@ announcementSchema.index({ expiryDate: 1 });
 announcementSchema.index({ createdBy: 1 });
 announcementSchema.index({ isDeleted: 1 });
 announcementSchema.index({ applicableRoles: 1 });
+announcementSchema.index({ schoolId: 1, visibleToRoles: 1 });
+announcementSchema.index({ schoolId: 1, status: 1 });
 
 // Apply soft delete filter
 addSoftDeleteFilter(announcementSchema);

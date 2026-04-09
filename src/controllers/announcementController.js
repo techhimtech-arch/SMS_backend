@@ -94,6 +94,8 @@ const createAnnouncement = asyncHandler(async (req, res) => {
     targetSections,
     targetUsers,
     createdBy: req.user.id,
+    schoolId: req.user.schoolId,
+    visibleToRoles: ['superadmin', 'school_admin', 'teacher', 'accountant', 'parent', 'student'],
     expiryDate: expiryDate ? new Date(expiryDate) : null,
     publishDate: publishDate ? new Date(publishDate) : new Date(),
     deliveryMethods: {
