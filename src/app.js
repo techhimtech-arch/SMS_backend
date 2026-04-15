@@ -28,6 +28,7 @@ const subjectRoutes = require('./routes/subjectRoutes');
 const classTeacherRoutes = require('./routes/classTeacherRoutes');
 // Phase 3 routes
 const academicYearRoutes = require('./routes/academicYearRoutes');
+const academicSummaryRoutes = require('./routes/academicSummaryRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
 // Enrollment system routes
@@ -174,6 +175,7 @@ app.use('/api/v1/teacher-assignments', teacherAssignmentRoutes);
 app.use('/api/v1/subjects', subjectRoutes);
 app.use('/api/v1/class-teacher', classTeacherRoutes);
 app.use('/api/v1/academic-years', academicYearRoutes);
+app.use('/api/v1/academic', academicSummaryRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/audit-logs', auditLogRoutes);
 app.use('/api/v1/enrollments', enrollmentRoutes);

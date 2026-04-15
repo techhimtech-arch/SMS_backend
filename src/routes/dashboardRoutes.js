@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDashboardStats, getTeacherDashboardStats } = require('../controllers/dashboardController');
+const { getDashboardStats, getTeacherDashboardStats, getRecentActivities, getAttendanceAnalytics, getFeeAnalytics } = require('../controllers/dashboardController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
 
@@ -82,5 +82,14 @@ router.get('/', authMiddleware, authorizeRoles('school_admin'), getDashboardStat
 
 // GET /api/dashboard/teacher - Get dashboard stats for teacher
 router.get('/teacher', authMiddleware, authorizeRoles('teacher'), getTeacherDashboardStats);
+
+// GET /api/dashboard/recent-activities - Get recent activities for admin dashboard
+router.get('/recent-activities', authMiddleware, authorizeRoles('school_admin'), getRecentActivities);
+
+// GET /api/dashboard/attendance-analytics - Get attendance analytics for admin dashboard
+router.get('/attendance-analytics', authMiddleware, authorizeRoles('school_admin'), getAttendanceAnalytics);
+
+// GET /api/dashboard/fee-analytics - Get fee analytics for admin dashboard
+router.get('/fee-analytics', authMiddleware, authorizeRoles('school_admin'), getFeeAnalytics);
 
 module.exports = router;

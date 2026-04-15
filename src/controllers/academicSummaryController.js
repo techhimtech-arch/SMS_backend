@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
 const Class = require('../models/Class');
 const Section = require('../models/Section');
@@ -108,9 +109,11 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
               $filter: {
                 input: '$enrollments',
                 cond: { 
-                  $eq: ['$$academicSessionId', academicSessionId],
-                  $eq: ['$$status', 'ENROLLED'],
-                  $eq: ['$$isDeleted', { $ne: true }]
+                  $and: [
+                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.status', 'ENROLLED'] },
+                    { $ne: ['$$this.isDeleted', true] }
+                  ]
                 }
               }
             }
@@ -120,9 +123,11 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
               $filter: {
                 input: '$enrollments',
                 cond: { 
-                  $eq: ['$$academicSessionId', academicSessionId],
-                  $eq: ['$$status', 'ENROLLED'],
-                  $eq: ['$$isDeleted', { $ne: true }]
+                  $and: [
+                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.status', 'ENROLLED'] },
+                    { $ne: ['$$this.isDeleted', true] }
+                  ]
                 }
               }
             }
@@ -291,9 +296,11 @@ const getClassStats = asyncHandler(async (req, res) => {
               $filter: {
                 input: '$enrollments',
                 cond: { 
-                  $eq: ['$$academicSessionId', new mongoose.Types.ObjectId(academicSessionId)],
-                  $eq: ['$$status', 'ENROLLED'],
-                  $eq: ['$$isDeleted', { $ne: true }]
+                  $and: [
+                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.status', 'ENROLLED'] },
+                    { $ne: ['$$this.isDeleted', true] }
+                  ]
                 }
               }
             }
@@ -303,10 +310,12 @@ const getClassStats = asyncHandler(async (req, res) => {
               $filter: {
                 input: '$enrollments',
                 cond: { 
-                  $eq: ['$$academicSessionId', new mongoose.Types.ObjectId(academicSessionId)],
-                  $eq: ['$$status', 'ENROLLED'],
-                  $eq: ['$$isDeleted', { $ne: true }],
-                  $eq: ['$$studentId.gender', 'Male']
+                  $and: [
+                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.status', 'ENROLLED'] },
+                    { $ne: ['$$this.isDeleted', true] },
+                    { $eq: ['$$this.studentId.gender', 'Male'] }
+                  ]
                 }
               }
             }
@@ -316,13 +325,16 @@ const getClassStats = asyncHandler(async (req, res) => {
               $filter: {
                 input: '$enrollments',
                 cond: { 
-                  $eq: ['$$academicSessionId', new mongoose.Types.ObjectId(academicSessionId)],
-                  $eq: ['$$status', 'ENROLLED'],
-                  $eq: ['$$isDeleted', { $ne: true }],
-                  $eq: ['$$studentId.gender', 'Female']
+                  $and: [
+                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.status', 'ENROLLED'] },
+                    { $ne: ['$$this.isDeleted', true] },
+                    { $eq: ['$$this.studentId.gender', 'Female'] }
+                  ]
                 }
               }
             }
+          }
         }
       }
     ]);
@@ -382,7 +394,7 @@ const getEnrollmentTrends = asyncHandler(async (req, res) => {
           totalEnrollments: {
             $sum: {
               $cond: {
-                if: { $eq: ['$$status', 'ENROLLED'] },
+                if: { $eq: ['$status', 'ENROLLED'] },
                 then: 1,
                 else: 0
               }
@@ -393,8 +405,8 @@ const getEnrollmentTrends = asyncHandler(async (req, res) => {
               $cond: {
                 if: { 
                   $and: [
-                    { $eq: ['$$status', 'ENROLLED'] },
-                    { $gte: ['$$enrollmentDate', new Date(new Date().getFullYear() - 1, 0, 1)] }
+                    { $eq: ['$status', 'ENROLLED'] },
+                    { $gte: ['$enrollmentDate', new Date(new Date().getFullYear() - 1, 0, 1)] }
                   ]
                 },
                 then: 1,
@@ -405,7 +417,7 @@ const getEnrollmentTrends = asyncHandler(async (req, res) => {
           promotedStudents: {
             $sum: {
               $cond: {
-                if: { $eq: ['$$status', 'PROMOTED'] },
+                if: { $eq: ['$status', 'PROMOTED'] },
                 then: 1,
                 else: 0
               }
@@ -414,7 +426,7 @@ const getEnrollmentTrends = asyncHandler(async (req, res) => {
           droppedStudents: {
             $sum: {
               $cond: {
-                if: { $eq: ['$$status', 'DROPPED_OUT'] },
+                if: { $eq: ['$status', 'DROPPED_OUT'] },
                 then: 1,
                 else: 0
               }

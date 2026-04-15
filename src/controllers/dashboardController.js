@@ -10,6 +10,7 @@ const Exam = require('../models/Exam');
 const Result = require('../models/Result');
 const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const TeacherAssignment = require('../models/TeacherAssignment');
+const Announcement = require('../models/Announcement');
 const logger = require('../utils/logger');
 
 /**
@@ -388,7 +389,382 @@ const getTeacherDashboardStats = async (req, res) => {
   }
 };
 
+// Get recent activities for admin dashboard
+const getRecentActivities = async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.user.schoolId);
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Get recent student registrations
+    const recentStudents = await Student.find({ schoolId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name email createdAt classId')
+      .populate('classId', 'name');
+    
+    // Get recent fee payments
+    const recentPayments = await FeePayment.find({ schoolId })
+      .sort({ paymentDate: -1 })
+      .limit(5)
+      .select('amount paymentDate status studentId')
+      .populate('studentId', 'name');
+    
+    // Get recent exam results
+    const recentResults = await Result.find({ schoolId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('marksObtained maxMarks grade examId studentId createdAt')
+      .populate('examId', 'name')
+      .populate('studentId', 'name');
+    
+    // Get recent announcements
+    const recentAnnouncements = await Announcement.find({ schoolId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title message createdAt status');
+    
+    const activities = [
+      ...recentStudents.map(student => ({
+        type: 'student_registration',
+        title: 'New Student Registered',
+        description: `${student.name} registered in ${student.classId?.name || 'Unknown Class'}`,
+        timestamp: student.createdAt,
+        data: student
+      })),
+      ...recentPayments.map(payment => ({
+        type: 'fee_payment',
+        title: 'Fee Payment Received',
+        description: `${payment.studentId?.name || 'Unknown'} paid Rs. ${payment.amount}`,
+        timestamp: payment.paymentDate,
+        data: payment
+      })),
+      ...recentResults.map(result => ({
+        type: 'exam_result',
+        title: 'Exam Result Added',
+        description: `${result.studentId?.name || 'Unknown'} scored ${result.marksObtained}/${result.maxMarks} in ${result.examId?.name || 'Unknown Exam'}`,
+        timestamp: result.createdAt,
+        data: result
+      })),
+      ...recentAnnouncements.map(announcement => ({
+        type: 'announcement',
+        title: announcement.title,
+        description: announcement.message.substring(0, 100) + '...',
+        timestamp: announcement.createdAt,
+        data: announcement
+      }))
+    ];
+    
+    // Sort all activities by timestamp (most recent first)
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    res.status(200).json({
+      success: true,
+      data: activities.slice(0, limit),
+    });
+  } catch (error) {
+    logger.error('Recent Activities Error', { requestId: req.requestId, error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activities',
+      error: error.message,
+    });
+  }
+};
+
+// Get attendance analytics for admin dashboard
+const getAttendanceAnalytics = async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.user.schoolId);
+    const { months = 6 } = req.query;
+    
+    // Calculate date range for last N months
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - parseInt(months));
+    
+    // Get monthly attendance data
+    const monthlyData = await Attendance.aggregate([
+      {
+        $match: {
+          schoolId,
+          date: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$date' },
+            month: { $month: '$date' }
+          },
+          totalStudents: { $sum: 1 },
+          presentStudents: {
+            $sum: { $cond: [{ $eq: ['$status', 'Present'] }, 1, 0] }
+          },
+          absentStudents: {
+            $sum: { $cond: [{ $eq: ['$status', 'Absent'] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $project: {
+          month: {
+            $dateToString: {
+              format: '%Y-%m',
+              date: {
+                $dateFromParts: {
+                  year: '$_id.year',
+                  month: '$_id.month'
+                }
+              }
+            }
+          },
+          totalStudents: 1,
+          presentStudents: 1,
+          absentStudents: 1,
+          attendancePercentage: {
+            $multiply: [
+              {
+                $divide: ['$presentStudents', '$totalStudents']
+              },
+              100
+            ]
+          }
+        }
+      },
+      { $sort: { month: 1 } }
+    ]);
+    
+    // Get class-wise attendance trends
+    const classWiseData = await Attendance.aggregate([
+      {
+        $match: {
+          schoolId,
+          date: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $lookup: {
+          from: 'students',
+          localField: 'studentId',
+          foreignField: '_id',
+          as: 'student'
+        }
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'student.classId',
+          foreignField: '_id',
+          as: 'class'
+        }
+      },
+      { $unwind: '$student' },
+      { $unwind: '$class' },
+      {
+        $group: {
+          _id: '$class._id',
+          className: { $first: '$class.name' },
+          totalAttendance: { $sum: 1 },
+          presentAttendance: {
+            $sum: { $cond: [{ $eq: ['$status', 'Present'] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $project: {
+          className: 1,
+          attendancePercentage: {
+            $multiply: [
+              {
+                $divide: ['$presentAttendance', '$totalAttendance']
+              },
+              100
+            ]
+          }
+        }
+      },
+      { $sort: { attendancePercentage: -1 } }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        monthlyTrends: monthlyData,
+        classWiseTrends: classWiseData,
+        period: {
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          months: parseInt(months)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Attendance Analytics Error', { requestId: req.requestId, error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch attendance analytics',
+      error: error.message,
+    });
+  }
+};
+
+// Get fee analytics for admin dashboard
+const getFeeAnalytics = async (req, res) => {
+  try {
+    const schoolId = new mongoose.Types.ObjectId(req.user.schoolId);
+    const { months = 6 } = req.query;
+    
+    // Calculate date range for last N months
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - parseInt(months));
+    
+    // Get monthly fee collection trends
+    const monthlyData = await FeePayment.aggregate([
+      {
+        $match: {
+          schoolId,
+          paymentDate: { $gte: startDate, $lte: endDate },
+          status: 'Completed'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$paymentDate' },
+            month: { $month: '$paymentDate' }
+          },
+          totalCollected: { $sum: '$amount' },
+          paymentCount: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          month: {
+            $dateToString: {
+              format: '%Y-%m',
+              date: {
+                $dateFromParts: {
+                  year: '$_id.year',
+                  month: '$_id.month'
+                }
+              }
+            }
+          },
+          totalCollected: 1,
+          paymentCount: 1
+        }
+      },
+      { $sort: { month: 1 } }
+    ]);
+    
+    // Get pending fees by class
+    const pendingFeesByClass = await StudentFee.aggregate([
+      {
+        $match: {
+          schoolId,
+          dueAmount: { $gt: 0 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'students',
+          localField: 'studentId',
+          foreignField: '_id',
+          as: 'student'
+        }
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'student.classId',
+          foreignField: '_id',
+          as: 'class'
+        }
+      },
+      { $unwind: '$student' },
+      { $unwind: '$class' },
+      {
+        $group: {
+          _id: '$class._id',
+          className: { $first: '$class.name' },
+          totalPending: { $sum: '$dueAmount' },
+          studentCount: { $addToSet: '$studentId' }
+        }
+      },
+      {
+        $project: {
+          className: 1,
+          totalPending: 1,
+          studentCount: { $size: '$studentCount' }
+        }
+      },
+      { $sort: { totalPending: -1 } }
+    ]);
+    
+    // Get payment method breakdown
+    const paymentMethods = await FeePayment.aggregate([
+      {
+        $match: {
+          schoolId,
+          paymentDate: { $gte: startDate, $lte: endDate },
+          status: 'Completed'
+        }
+      },
+      {
+        $group: {
+          _id: '$paymentMethod',
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          paymentMethod: '$_id',
+          totalAmount: 1,
+          count: 1,
+          percentage: {
+            $multiply: [
+              {
+                $divide: ['$count', {
+                  $sum: '$count'
+                }]
+              },
+              100
+            ]
+          }
+        }
+      },
+      { $sort: { totalAmount: -1 } }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        monthlyTrends: monthlyData,
+        pendingFeesByClass,
+        paymentMethods,
+        period: {
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          months: parseInt(months)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Fee Analytics Error', { requestId: req.requestId, error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch fee analytics',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getTeacherDashboardStats,
+  getRecentActivities,
+  getAttendanceAnalytics,
+  getFeeAnalytics,
 };

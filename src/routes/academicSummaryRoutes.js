@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAcademicSummary,
-  getClassStats,
-  getEnrollmentTrends
-} = require('../controllers/academicSummaryController');
+const academicSummaryController = require('../controllers/academicSummaryController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 /**
@@ -79,7 +75,13 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *       500:
  *         description: Internal server error
  */
-router.get('/', authMiddleware, getAcademicSummary);
+router.get('/test', (req, res) => {
+  res.json({ success: true, message: 'Academic routes are working' });
+});
+
+router.get('/summary', [authMiddleware, ...academicSummaryController.getAcademicSummary]);
+
+router.get('/', [authMiddleware, ...academicSummaryController.getAcademicSummary]);
 
 /**
  * @swagger
@@ -139,7 +141,7 @@ router.get('/', authMiddleware, getAcademicSummary);
  *       500:
  *         description: Internal server error
  */
-router.get('/class-stats/:classId', authMiddleware, getClassStats);
+router.get('/class-stats/:classId', [authMiddleware, ...academicSummaryController.getClassStats]);
 
 /**
  * @swagger
@@ -198,6 +200,6 @@ router.get('/class-stats/:classId', authMiddleware, getClassStats);
  *       500:
  *         description: Internal server error
  */
-router.get('/enrollment-trends', authMiddleware, getEnrollmentTrends);
+router.get('/enrollment-trends', [authMiddleware, ...academicSummaryController.getEnrollmentTrends]);
 
 module.exports = router;

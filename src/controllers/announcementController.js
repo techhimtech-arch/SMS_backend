@@ -154,14 +154,35 @@ const getAnnouncements = asyncHandler(async (req, res) => {
   // Build query
   const query = {};
 
-  // If no status filter is provided, default to published announcements
-  if (!status) {
-    query.status = 'PUBLISHED';
-  }
+  // Role-based filtering
+  const isSuperAdmin = req.user.role === 'superadmin';
 
-  // Filter by status (don't filter if status is "all")
-  if (status && status !== 'all') {
-    query.status = status.toUpperCase();
+  if (isSuperAdmin) {
+    // Superadmin sees ALL announcements from all schools
+    // No schoolId or visibleToRoles restrictions
+    
+    // Filter by status only if explicitly requested (not by default)
+    if (status && status !== 'all') {
+      query.status = status.toUpperCase();
+    }
+    // If status='all' or no status: show all statuses (don't filter by status)
+  } else {
+    // Non-superadmin users
+    // Default to published if no status filter is provided
+    if (!status) {
+      query.status = 'PUBLISHED';
+    } else if (status !== 'all') {
+      // If status is explicitly set to something other than 'all', allow filtering
+      // but still respect the PUBLISHED default behavior
+      query.status = status.toUpperCase();
+    } else {
+      // If status='all', still only show PUBLISHED for non-superadmin
+      query.status = 'PUBLISHED';
+    }
+    
+    // Non-superadmin can only see within their school and visible to their role
+    query.schoolId = req.user.schoolId;
+    query.visibleToRoles = { $in: [req.user.role] };
   }
 
   // Filter by type (don't filter if type is "all")
@@ -212,12 +233,6 @@ const getAnnouncements = asyncHandler(async (req, res) => {
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
-
-  // Add role-based filtering
-  if (req.user.role !== 'admin') {
-    query.schoolId = req.user.schoolId;
-    query.visibleToRoles = { $in: [req.user.role] };
-  }
 
   const [announcements, total] = await Promise.all([
     Announcement.find(query)
@@ -340,15 +355,15 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Check if user can update this announcement
-  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'superadmin') {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to update this announcement'
     });
   }
 
-  // Don't allow updating published announcements if not admin
-  if (announcement.status === 'PUBLISHED' && req.user.role !== 'admin') {
+  // Don't allow updating published announcements if not superadmin
+  if (announcement.status === 'PUBLISHED' && req.user.role !== 'superadmin') {
     return res.status(400).json({
       success: false,
       message: 'Cannot update published announcement'
@@ -421,7 +436,7 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Check if user can delete this announcement
-  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'superadmin') {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to delete this announcement'
@@ -591,7 +606,7 @@ const publishAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Check permission
-  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'superadmin') {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to publish this announcement'
@@ -640,7 +655,7 @@ const unpublishAnnouncement = asyncHandler(async (req, res) => {
   }
 
   // Check permission
-  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (announcement.createdBy.toString() !== req.user.id && req.user.role !== 'superadmin') {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to unpublish this announcement'
