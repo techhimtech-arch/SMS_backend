@@ -8,6 +8,7 @@ const Result = require('../models/Result');
 const Exam = require('../models/Exam');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
+const Enrollment = require('../models/Enrollment');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 const logger = require('../utils/logger');
@@ -112,24 +113,42 @@ exports.getAssignedStudents = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('No class assignments found for this teacher', 404));
   }
 
-  // Build query for students
-  const query = {
+  // Build query for enrollments
+  const enrollmentQuery = {
     schoolId: req.user.schoolId,
-    isActive: true,
+    status: 'ENROLLED',
+    isDeleted: { $ne: true },
   };
 
-  if (classId) query.classId = classId;
-  if (sectionId) query.sectionId = sectionId;
+  if (classId) enrollmentQuery.classId = classId;
+  if (sectionId) enrollmentQuery.sectionId = sectionId;
 
-  const students = await StudentProfile.find(query)
+  // Get enrollments and populate student information
+  const enrollments = await Enrollment.find(enrollmentQuery)
+    .populate({
+      path: 'studentId',
+      match: { isActive: true },
+      select: 'admissionNumber firstName lastName gender dateOfBirth email phone parentUserId'
+    })
     .populate('classId', 'name')
     .populate('sectionId', 'name')
-    .select('admissionNumber firstName lastName gender dateOfBirth email phone parentUserId')
     .limit(limit * 1)
     .skip((page - 1) * limit)
-    .sort({ firstName: 1, lastName: 1 });
+    .sort({ 'studentId.firstName': 1, 'studentId.lastName': 1 });
 
-  const total = await StudentProfile.countDocuments(query);
+  // Filter out enrollments where studentId is null (due to match condition)
+  const validEnrollments = enrollments.filter(enrollment => enrollment.studentId != null);
+
+  // Transform the data to return student information
+  const students = validEnrollments.map(enrollment => ({
+    ...enrollment.studentId.toObject(),
+    classId: enrollment.classId,
+    sectionId: enrollment.sectionId,
+    rollNumber: enrollment.rollNumber,
+    enrollmentId: enrollment._id
+  }));
+
+  const total = await Enrollment.countDocuments(enrollmentQuery);
 
   res.status(200).json({
     success: true,
@@ -170,15 +189,17 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
     };
   }
 
-  // Get students from assigned classes
-  const studentQuery = {
+  // Get students from assigned classes through enrollments
+  const enrollmentQuery = {
     schoolId: req.user.schoolId,
+    status: 'ENROLLED',
+    isDeleted: { $ne: true },
     ...(classId && { classId }),
     ...(sectionId && { sectionId }),
   };
 
-  const students = await StudentProfile.find(studentQuery).select('_id');
-  const studentIds = students.map(s => s._id);
+  const enrollments = await Enrollment.find(enrollmentQuery).select('studentId');
+  const studentIds = enrollments.map(e => e.studentId);
 
   if (studentIds.length > 0) {
     query.studentId = { $in: studentIds };
@@ -378,15 +399,17 @@ exports.getResults = asyncHandler(async (req, res, next) => {
   if (examId) query.examId = examId;
   if (subjectId) query.subjectId = subjectId;
 
-  // If class/section specified, get students from those classes
+  // If class/section specified, get students from those classes through enrollments
   if (classId || sectionId) {
-    const studentQuery = {
+    const enrollmentQuery = {
       schoolId: req.user.schoolId,
+      status: 'ENROLLED',
+      isDeleted: { $ne: true },
       ...(classId && { classId }),
       ...(sectionId && { sectionId }),
     };
-    const students = await StudentProfile.find(studentQuery).select('_id');
-    const studentIds = students.map(s => s._id);
+    const enrollments = await Enrollment.find(enrollmentQuery).select('studentId');
+    const studentIds = enrollments.map(e => e.studentId);
     if (studentIds.length > 0) {
       query.studentId = { $in: studentIds };
     }
@@ -547,10 +570,11 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     totalExams,
   ] = await Promise.all([
     // Total students in assigned classes
-    StudentProfile.countDocuments({
+    Enrollment.countDocuments({
       schoolId,
       classId: { $in: classIds },
-      isActive: true,
+      status: 'ENROLLED',
+      isDeleted: { $ne: true },
     }),
     // Today's attendance count
     Attendance.countDocuments({
