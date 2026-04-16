@@ -46,6 +46,9 @@ const bulkAdmissionRoutes = require('./routes/bulkAdmissionRoutes');
 const examRoutes = require('./routes/examRoutes');
 const markRoutes = require('./routes/markRoutes');
 const feeRoutes = require('./routes/feeRoutes');
+// Quiz system routes
+const quizRoutes = require('./routes/quizRoutes');
+const studentQuizRoutes = require('./routes/studentQuizRoutes');
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
@@ -184,6 +187,9 @@ app.use('/api/v1/assignments', assignmentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/certificates', certificateRoutes);
 app.use('/api/v1/admission/bulk', bulkAdmissionRoutes);
+// Quiz system routes
+app.use('/api/v1/teacher/quizzes', quizRoutes);
+app.use('/api/v1/student/quizzes', studentQuizRoutes);
 
 // ===========================================
 // ERROR HANDLING

@@ -9,6 +9,7 @@ const Exam = require('../models/Exam');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const Enrollment = require('../models/Enrollment');
+const AcademicYear = require('../models/AcademicYear');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 const logger = require('../utils/logger');
@@ -251,14 +252,34 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
   const startOfDay = new Date(attendanceDate.getFullYear(), attendanceDate.getMonth(), attendanceDate.getDate(), 0, 0, 0, 0);
   const endOfDay = new Date(attendanceDate.getFullYear(), attendanceDate.getMonth(), attendanceDate.getDate(), 23, 59, 59, 999);
 
-  // Check if attendance already exists for this date and class
-  const existingAttendance = await Attendance.find({
+  // Get enrollment information for all students
+  const studentIds = attendanceRecords.map(record => record.studentId);
+  const enrollments = await Enrollment.find({
+    studentId: { $in: studentIds },
     classId,
     sectionId,
+    status: 'ENROLLED',
+    isDeleted: { $ne: true }
+  });
+
+  // Get current academic year
+  const currentAcademicYear = await AcademicYear.findOne({
+    schoolId: req.user.schoolId,
+    isActive: true
+  });
+
+  if (!currentAcademicYear) {
+    return next(new ErrorResponse('No active academic year found', 400));
+  }
+
+  // Check if attendance already exists for this date and class
+  const existingAttendance = await Attendance.find({
+    enrollmentId: { $in: enrollments.map(e => e._id) },
     date: {
       $gte: startOfDay,
       $lte: endOfDay,
     },
+    academicYearId: currentAcademicYear._id,
     schoolId: req.user.schoolId,
   });
 
@@ -266,17 +287,26 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Attendance already marked for this date and class', 400));
   }
 
-  // Create attendance records
-  const attendanceDocs = attendanceRecords.map(record => ({
-    studentId: record.studentId,
-    classId,
-    sectionId,
-    date: attendanceDate,
-    status: record.status,
-    remarks: record.remarks || '',
-    markedBy: req.user.userId,
-    schoolId: req.user.schoolId,
-  }));
+  // Create attendance records with required fields
+  const attendanceDocs = attendanceRecords.map(record => {
+    const enrollment = enrollments.find(e => e.studentId.toString() === record.studentId);
+    if (!enrollment) {
+      throw new Error(`Student ${record.studentId} is not enrolled in this class/section`);
+    }
+    
+    return {
+      enrollmentId: enrollment._id,
+      studentId: record.studentId,
+      classId,
+      sectionId,
+      academicYearId: currentAcademicYear._id,
+      date: attendanceDate,
+      status: record.status,
+      remarks: record.remarks || '',
+      markedBy: req.user.userId,
+      schoolId: req.user.schoolId,
+    };
+  });
 
   const createdAttendance = await Attendance.insertMany(attendanceDocs);
 
