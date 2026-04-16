@@ -1,12 +1,17 @@
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose');
 const ParentStudentMapping = require('../models/ParentStudentMapping');
 const Student = require('../models/Student');
+const StudentProfile = require('../models/StudentProfile');
 const StudentFee = require('../models/StudentFee');
 const Attendance = require('../models/Attendance');
 const Result = require('../models/Result');
 const Assignment = require('../models/Assignment');
 const AssignmentSubmission = require('../models/AssignmentSubmission');
 const Announcement = require('../models/Announcement');
+const AcademicYear = require('../models/AcademicYear');
+const StudentRemark = require('../models/StudentRemark');
+const ErrorResponse = require('../utils/errorResponse');
 const logger = require('../utils/logger');
 
 /**
@@ -527,6 +532,266 @@ const getChildTimetable = asyncHandler(async (req, res) => {
   });
 });
 
+// GET /api/parent/homework/:studentId - Get child's homework
+exports.getChildHomework = asyncHandler(async (req, res, next) => {
+  const { studentId } = req.params;
+  const { status, page = 1, limit = 20 } = req.query;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(req.user.id, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student's current enrollment
+  const StudentProfile = require('../models/StudentProfile');
+  const student = await StudentProfile.findOne({
+    _id: studentId,
+    schoolId: req.user.schoolId,
+  }).populate('currentEnrollment');
+
+  if (!student || !student.currentEnrollment) {
+    return next(new ErrorResponse('Student enrollment not found', 404));
+  }
+
+  // Build query for assignments
+  const Assignment = require('../models/Assignment');
+  const query = {
+    classId: student.currentEnrollment.classId,
+    sectionId: student.currentEnrollment.sectionId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true },
+    status: 'PUBLISHED'
+  };
+
+  // Filter by status if provided
+  if (status === 'pending') {
+    query.dueDate = { $gte: new Date() };
+  } else if (status === 'overdue') {
+    query.dueDate = { $lt: new Date() };
+  }
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [homework, total] = await Promise.all([
+    Assignment.find(query)
+      .populate('subjectId', 'name code')
+      .populate('teacherId', 'name')
+      .sort({ dueDate: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    Assignment.countDocuments(query)
+  ]);
+
+  // Get submission status for each homework
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+  const homeworkIds = homework.map(h => h._id);
+  const submissions = await AssignmentSubmission.find({
+    assignmentId: { $in: homeworkIds },
+    studentId: studentId,
+    isDeleted: { $ne: true }
+  });
+
+  // Add submission status to homework
+  const homeworkWithStatus = homework.map(hw => {
+    const submission = submissions.find(s => s.assignmentId.toString() === hw._id.toString());
+    return {
+      ...hw.toObject(),
+      submission: submission || null,
+      isSubmitted: !!submission,
+      isOverdue: new Date(hw.dueDate) < new Date() && !submission,
+      daysUntilDue: Math.ceil((new Date(hw.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: homeworkWithStatus.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: homeworkWithStatus
+  });
+});
+
+// GET /api/parent/remarks/:studentId - Get child's remarks
+exports.getChildRemarks = asyncHandler(async (req, res, next) => {
+  const { studentId } = req.params;
+  const { category, type, page = 1, limit = 20 } = req.query;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(req.user.id, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get current academic year
+  const AcademicYear = require('../models/AcademicYear');
+  const currentAcademicYear = await AcademicYear.findOne({
+    schoolId: req.user.schoolId,
+    isActive: true
+  });
+
+  if (!currentAcademicYear) {
+    return next(new ErrorResponse('No active academic year found', 400));
+  }
+
+  // Build query
+  const StudentRemark = require('../models/StudentRemark');
+  const query = {
+    studentId,
+    schoolId: req.user.schoolId,
+    academicYearId: currentAcademicYear._id,
+    isDeleted: { $ne: true }
+  };
+
+  if (category) query.category = category;
+  if (type) query.type = type;
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [remarks, total] = await Promise.all([
+    StudentRemark.find(query)
+      .populate('teacherId', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    StudentRemark.countDocuments(query)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    count: remarks.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: remarks
+  });
+});
+
+// GET /api/parent/performance/:studentId - Get child's performance summary
+exports.getChildPerformance = asyncHandler(async (req, res, next) => {
+  const { studentId } = req.params;
+
+  // Verify parent has access to this student
+  const hasAccess = await ParentStudentMapping.hasAccess(req.user.id, studentId);
+  if (!hasAccess) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. You are not linked to this student.'
+    });
+  }
+
+  // Get student info
+  const StudentProfile = require('../models/StudentProfile');
+  const student = await StudentProfile.findOne({
+    _id: studentId,
+    schoolId: req.user.schoolId,
+  }).populate('currentEnrollment');
+
+  if (!student) {
+    return next(new ErrorResponse('Student not found', 404));
+  }
+
+  // Get performance data in parallel
+  const [attendanceStats, recentResults, feeStatus, recentRemarks] = await Promise.all([
+    // Attendance statistics (last 30 days)
+    Attendance.aggregate([
+      {
+        $match: {
+          studentId: new mongoose.Types.ObjectId(studentId),
+          schoolId: new mongoose.Types.ObjectId(req.user.schoolId),
+          date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]),
+    // Recent exam results
+    Result.find({
+      studentId,
+      schoolId: req.user.schoolId
+    })
+    .populate('examId', 'name examDate')
+    .populate('subjectId', 'name')
+    .sort({ createdAt: -1 })
+    .limit(10),
+    // Fee status
+    StudentFee.findOne({
+      studentId,
+      schoolId: req.user.schoolId,
+      isActive: true
+    }),
+    // Recent remarks
+    StudentRemark.find({
+      studentId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    })
+    .populate('teacherId', 'name')
+    .sort({ createdAt: -1 })
+    .limit(5)
+  ]);
+
+  // Calculate attendance percentage
+  const totalAttendanceDays = attendanceStats.reduce((sum, stat) => sum + stat.count, 0);
+  const presentDays = attendanceStats.find(stat => stat._id === 'Present')?.count || 0;
+  const attendancePercentage = totalAttendanceDays > 0 ? ((presentDays / totalAttendanceDays) * 100).toFixed(1) : 0;
+
+  // Calculate average marks
+  const totalMarks = recentResults.reduce((sum, result) => sum + (result.marksObtained || 0), 0);
+  const totalMaxMarks = recentResults.reduce((sum, result) => sum + (result.maxMarks || 0), 0);
+  const averagePercentage = totalMaxMarks > 0 ? ((totalMarks / totalMaxMarks) * 100).toFixed(1) : 0;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      student: {
+        _id: student._id,
+        name: `${student.firstName} ${student.lastName}`,
+        admissionNumber: student.admissionNumber,
+        class: student.currentEnrollment?.classId,
+        section: student.currentEnrollment?.sectionId
+      },
+      performance: {
+        attendance: {
+          percentage: parseFloat(attendancePercentage),
+          breakdown: attendanceStats
+        },
+        academics: {
+          averagePercentage: parseFloat(averagePercentage),
+          recentResults: recentResults.slice(0, 5)
+        },
+        fees: feeStatus ? {
+          totalAmount: feeStatus.totalAmount,
+          paidAmount: feeStatus.paidAmount,
+          balanceAmount: feeStatus.balanceAmount,
+          status: feeStatus.balanceAmount > 0 ? 'Pending' : 'Paid'
+        } : null,
+        behavior: {
+          recentRemarks: recentRemarks,
+          positiveCount: recentRemarks.filter(r => r.type === 'POSITIVE').length,
+          negativeCount: recentRemarks.filter(r => r.type === 'NEGATIVE').length
+        }
+      }
+    }
+  });
+});
+
 module.exports = {
   getParentDashboard,
   getStudentDetail,
@@ -535,5 +800,8 @@ module.exports = {
   getChildFees,
   getChildResults,
   getChildAnnouncements,
-  getChildTimetable
+  getChildTimetable,
+  getChildHomework,
+  getChildRemarks,
+  getChildPerformance
 };

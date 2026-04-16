@@ -13,7 +13,10 @@ const {
   getChildFees,
   getChildResults,
   getChildAnnouncements,
-  getChildTimetable
+  getChildTimetable,
+  getChildHomework,
+  getChildRemarks,
+  getChildPerformance
 } = require('../controllers/parentPortalController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
@@ -312,5 +315,115 @@ router.get('/children/:studentId/announcements', authMiddleware, authorizeRoles(
  *         description: Student not found
  */
 router.get('/children/:studentId/timetable', authMiddleware, authorizeRoles('parent'), getChildTimetable);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/homework:
+ *   get:
+ *     summary: Get child's homework assignments
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, overdue, all]
+ *         description: Filter by homework status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Child's homework assignments with submission status
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/homework', authMiddleware, authorizeRoles('parent'), getChildHomework);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/remarks:
+ *   get:
+ *     summary: Get child's remarks
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *           enum: [ACADEMIC, BEHAVIOR, DISCIPLINE, ATTENDANCE, EXTRA_CURRICULAR, GENERAL]
+ *         description: Filter by remark category
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [POSITIVE, NEGATIVE, NEUTRAL]
+ *         description: Filter by remark type
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Child's remarks
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/remarks', authMiddleware, authorizeRoles('parent'), getChildRemarks);
+
+/**
+ * @swagger
+ * /parent/children/{studentId}/performance:
+ *   get:
+ *     summary: Get child's performance summary
+ *     tags: [Parent Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Child's comprehensive performance summary
+ *       403:
+ *         description: Access denied - Not parent of this student
+ *       404:
+ *         description: Student not found
+ */
+router.get('/children/:studentId/performance', authMiddleware, authorizeRoles('parent'), getChildPerformance);
 
 module.exports = router;

@@ -8,6 +8,10 @@ const {
   getExams,
   getAnnouncements,
   getDashboardStats,
+  getHomework,
+  getHomeworkDetails,
+  submitHomework,
+  getRemarks,
 } = require('../controllers/studentPortalController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
@@ -232,5 +236,136 @@ router.get('/announcements', authMiddleware, authorizeRoles('student'), getAnnou
  *         description: Student dashboard with attendance, fees, results, and announcements
  */
 router.get('/dashboard', authMiddleware, authorizeRoles('student'), getDashboardStats);
+
+// Homework Management Routes
+/**
+ * @swagger
+ * /student/homework:
+ *   get:
+ *     summary: Get student homework assignments
+ *     tags: [Student Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, overdue, all]
+ *         description: Filter by homework status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: List of homework assignments with submission status
+ */
+router.get('/homework', authMiddleware, authorizeRoles('student'), getHomework);
+
+/**
+ * @swagger
+ * /student/homework/{homeworkId}:
+ *   get:
+ *     summary: Get single homework with submission details
+ *     tags: [Student Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: homeworkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Homework details with submission status
+ *       404:
+ *         description: Homework not found
+ */
+router.get('/homework/:homeworkId', authMiddleware, authorizeRoles('student'), getHomeworkDetails);
+
+/**
+ * @swagger
+ * /student/homework/{homeworkId}/submit:
+ *   post:
+ *     summary: Submit homework assignment
+ *     tags: [Student Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: homeworkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *               attachments:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       201:
+ *         description: Homework submitted successfully
+ *       400:
+ *         description: Homework already submitted or overdue
+ *       404:
+ *         description: Homework not found
+ */
+router.post('/homework/:homeworkId/submit', authMiddleware, authorizeRoles('student'), submitHomework);
+
+// Remarks Routes
+/**
+ * @swagger
+ * /student/remarks:
+ *   get:
+ *     summary: Get student remarks
+ *     tags: [Student Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *           enum: [ACADEMIC, BEHAVIOR, DISCIPLINE, ATTENDANCE, EXTRA_CURRICULAR, GENERAL]
+ *         description: Filter by remark category
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [POSITIVE, NEGATIVE, NEUTRAL]
+ *         description: Filter by remark type
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: List of student remarks
+ */
+router.get('/remarks', authMiddleware, authorizeRoles('student'), getRemarks);
 
 module.exports = router;

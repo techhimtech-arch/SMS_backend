@@ -639,3 +639,371 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     },
   });
 });
+
+// GET /api/teacher/homework - Get homework assignments for teacher
+exports.getHomework = asyncHandler(async (req, res, next) => {
+  const { classId, sectionId, subjectId, status, page = 1, limit = 20 } = req.query;
+
+  // Get teacher's assignments to verify access
+  const assignments = await TeacherAssignment.find({
+    teacherId: req.user.userId,
+    schoolId: req.user.schoolId,
+    ...(classId && { classId }),
+    ...(sectionId && { sectionId }),
+    ...(subjectId && { subjectId }),
+  });
+
+  if (assignments.length === 0) {
+    return next(new ErrorResponse('No class assignments found for this teacher', 404));
+  }
+
+  // Build query for assignments (homework)
+  const query = {
+    teacherId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  };
+
+  if (classId) query.classId = classId;
+  if (sectionId) query.sectionId = sectionId;
+  if (subjectId) query.subjectId = subjectId;
+  if (status) query.status = status;
+
+  const Assignment = require('../models/Assignment');
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [homework, total] = await Promise.all([
+    Assignment.find(query)
+      .populate('subjectId', 'name code')
+      .populate('classId', 'name')
+      .populate('sectionId', 'name')
+      .sort({ dueDate: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    Assignment.countDocuments(query)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    count: homework.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: homework
+  });
+});
+
+// POST /api/teacher/homework - Create new homework assignment
+exports.createHomework = asyncHandler(async (req, res, next) => {
+  const {
+    title,
+    description,
+    subjectId,
+    classId,
+    sectionId,
+    dueDate,
+    maxMarks,
+    attachments,
+    allowLateSubmission,
+    lateSubmissionPenalty
+  } = req.body;
+
+  // Verify teacher has access to this class/section/subject
+  const assignments = await TeacherAssignment.find({
+    teacherId: req.user.userId,
+    schoolId: req.user.schoolId,
+    classId,
+    sectionId,
+    subjectId,
+  });
+
+  if (assignments.length === 0) {
+    return next(new ErrorResponse('No access to this class/section/subject', 403));
+  }
+
+  const Assignment = require('../models/Assignment');
+  const homework = new Assignment({
+    title,
+    description,
+    subjectId,
+    classId,
+    sectionId,
+    teacherId: req.user.userId,
+    dueDate: new Date(dueDate),
+    maxMarks,
+    attachments: attachments || [],
+    allowLateSubmission: allowLateSubmission || false,
+    lateSubmissionPenalty: lateSubmissionPenalty || 0,
+    createdBy: req.user.userId,
+    status: 'PUBLISHED' // Auto-publish homework
+  });
+
+  const savedHomework = await homework.save();
+
+  // Send notifications to students
+  const Enrollment = require('../models/Enrollment');
+  const enrollments = await Enrollment.find({
+    classId,
+    sectionId,
+    status: 'ENROLLED',
+    isDeleted: { $ne: true }
+  }).populate('studentId', 'userId');
+
+  const notificationService = require('../services/notificationService');
+  const notificationPromises = enrollments.map(enrollment => 
+    notificationService.sendNotification({
+      userId: enrollment.studentId.userId,
+      title: 'New Homework Assigned',
+      message: `${title} - Due: ${new Date(dueDate).toLocaleDateString()}`,
+      type: 'HOMEWORK',
+      data: {
+        homeworkId: savedHomework._id,
+        subjectId,
+        classId,
+        sectionId,
+        dueDate
+      }
+    })
+  );
+
+  await Promise.all(notificationPromises);
+
+  logger.info('Homework created', {
+    requestId: req.requestId,
+    homeworkId: savedHomework._id,
+    teacherId: req.user.userId,
+    classId,
+    sectionId
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Homework assigned successfully',
+    data: savedHomework
+  });
+});
+
+// GET /api/teacher/homework/:homeworkId/submissions - Get homework submissions
+exports.getHomeworkSubmissions = asyncHandler(async (req, res, next) => {
+  const { homeworkId } = req.params;
+  const { status, page = 1, limit = 50 } = req.query;
+
+  // Verify homework exists and teacher has access
+  const Assignment = require('../models/Assignment');
+  const homework = await Assignment.findOne({
+    _id: homeworkId,
+    teacherId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!homework) {
+    return next(new ErrorResponse('Homework not found or access denied', 404));
+  }
+
+  // Build query for submissions
+  const query = {
+    assignmentId: homeworkId,
+    isDeleted: { $ne: true }
+  };
+
+  if (status) query.status = status;
+
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [submissions, total] = await Promise.all([
+    AssignmentSubmission.find(query)
+      .populate('studentId', 'admissionNumber firstName lastName')
+      .sort({ submittedAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    AssignmentSubmission.countDocuments(query)
+  ]);
+
+  // Get students who haven't submitted
+  const Enrollment = require('../models/Enrollment');
+  const totalStudents = await Enrollment.countDocuments({
+    classId: homework.classId,
+    sectionId: homework.sectionId,
+    status: 'ENROLLED',
+    isDeleted: { $ne: true }
+  });
+
+  const submittedStudentIds = submissions.map(s => s.studentId._id);
+  const pendingSubmissions = await Enrollment.find({
+    classId: homework.classId,
+    sectionId: homework.sectionId,
+    studentId: { $nin: submittedStudentIds },
+    status: 'ENROLLED',
+    isDeleted: { $ne: true }
+  }).populate('studentId', 'admissionNumber firstName lastName');
+
+  res.status(200).json({
+    success: true,
+    data: {
+      homework,
+      submissions,
+      pendingSubmissions,
+      statistics: {
+        totalStudents,
+        submittedCount: submissions.length,
+        pendingCount: pendingSubmissions.length,
+        submissionRate: totalStudents > 0 ? ((submissions.length / totalStudents) * 100).toFixed(1) : 0
+      }
+    },
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(total / limitNum),
+      totalSubmissions: total
+    }
+  });
+});
+
+// PUT /api/teacher/homework/:homeworkId/grade - Grade homework submission
+exports.gradeHomework = asyncHandler(async (req, res, next) => {
+  const { homeworkId } = req.params;
+  const { submissionId, marks, grade, feedback } = req.body;
+
+  // Verify homework exists and teacher has access
+  const Assignment = require('../models/Assignment');
+  const homework = await Assignment.findOne({
+    _id: homeworkId,
+    teacherId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!homework) {
+    return next(new ErrorResponse('Homework not found or access denied', 404));
+  }
+
+  // Find and update submission
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+  const submission = await AssignmentSubmission.findOne({
+    _id: submissionId,
+    assignmentId: homeworkId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!submission) {
+    return next(new ErrorResponse('Submission not found', 404));
+  }
+
+  submission.marksObtained = marks;
+  submission.grade = grade;
+  submission.feedback = feedback;
+  submission.gradedBy = req.user.userId;
+  submission.gradedAt = new Date();
+  submission.status = 'GRADED';
+
+  const gradedSubmission = await submission.save();
+
+  // Send notification to student
+  const StudentProfile = require('../models/StudentProfile');
+  const student = await StudentProfile.findById(submission.studentId);
+  if (student && student.userId) {
+    const notificationService = require('../services/notificationService');
+    await notificationService.sendNotification({
+      userId: student.userId,
+      title: 'Homework Graded',
+      message: `Your homework "${homework.title}" has been graded. Marks: ${marks}/${homework.maxMarks}`,
+      type: 'HOMEWORK_GRADED',
+      data: {
+        homeworkId,
+        submissionId,
+        marks,
+        grade
+      }
+    });
+  }
+
+  logger.info('Homework graded', {
+    requestId: req.requestId,
+    homeworkId,
+    submissionId,
+    teacherId: req.user.userId,
+    marks
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Homework graded successfully',
+    data: gradedSubmission
+  });
+});
+
+// GET /api/teacher/homework/stats - Get homework statistics
+exports.getHomeworkStats = asyncHandler(async (req, res, next) => {
+  const teacherId = req.user.userId;
+  const schoolId = req.user.schoolId;
+
+  // Get teacher's assignments
+  const assignments = await TeacherAssignment.find({
+    teacherId,
+    schoolId,
+  });
+
+  const Assignment = require('../models/Assignment');
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+
+  const [
+    totalHomework,
+    activeHomework,
+    pendingGrading,
+    totalSubmissions,
+    recentSubmissions
+  ] = await Promise.all([
+    // Total homework created
+    Assignment.countDocuments({
+      teacherId,
+      schoolId,
+      isDeleted: { $ne: true }
+    }),
+    // Active homework (not past due date)
+    Assignment.countDocuments({
+      teacherId,
+      schoolId,
+      dueDate: { $gte: new Date() },
+      status: 'PUBLISHED',
+      isDeleted: { $ne: true }
+    }),
+    // Pending grading
+    AssignmentSubmission.countDocuments({
+      assignmentId: { $in: await Assignment.find({ teacherId, schoolId, isDeleted: { $ne: true } }).distinct('_id') },
+      status: 'SUBMITTED',
+      isDeleted: { $ne: true }
+    }),
+    // Total submissions received
+    AssignmentSubmission.countDocuments({
+      assignmentId: { $in: await Assignment.find({ teacherId, schoolId, isDeleted: { $ne: true } }).distinct('_id') },
+      isDeleted: { $ne: true }
+    }),
+    // Recent submissions (last 7 days)
+    AssignmentSubmission.find({
+      assignmentId: { $in: await Assignment.find({ teacherId, schoolId, isDeleted: { $ne: true } }).distinct('_id') },
+      submittedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      isDeleted: { $ne: true }
+    })
+    .populate('assignmentId', 'title')
+    .populate('studentId', 'firstName lastName')
+    .sort({ submittedAt: -1 })
+    .limit(10)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalHomework,
+      activeHomework,
+      pendingGrading,
+      totalSubmissions,
+      totalAssignments: assignments.length,
+      recentSubmissions
+    }
+  });
+});

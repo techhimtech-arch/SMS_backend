@@ -613,3 +613,279 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     },
   });
 });
+
+// GET /api/student/homework - Get student homework assignments
+exports.getHomework = asyncHandler(async (req, res, next) => {
+  const { status, page = 1, limit = 20 } = req.query;
+
+  // Get student's current enrollment
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  }).populate('currentEnrollment');
+
+  if (!student || !student.currentEnrollment) {
+    return next(new ErrorResponse('Student enrollment not found', 404));
+  }
+
+  // Build query for assignments
+  const Assignment = require('../models/Assignment');
+  const query = {
+    classId: student.currentEnrollment.classId,
+    sectionId: student.currentEnrollment.sectionId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true },
+    status: 'PUBLISHED'
+  };
+
+  // Filter by status if provided
+  if (status === 'pending') {
+    query.dueDate = { $gte: new Date() };
+  } else if (status === 'overdue') {
+    query.dueDate = { $lt: new Date() };
+  }
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [homework, total] = await Promise.all([
+    Assignment.find(query)
+      .populate('subjectId', 'name code')
+      .populate('teacherId', 'name')
+      .sort({ dueDate: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    Assignment.countDocuments(query)
+  ]);
+
+  // Get submission status for each homework
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+  const homeworkIds = homework.map(h => h._id);
+  const submissions = await AssignmentSubmission.find({
+    assignmentId: { $in: homeworkIds },
+    studentId: student._id,
+    isDeleted: { $ne: true }
+  });
+
+  // Add submission status to homework
+  const homeworkWithStatus = homework.map(hw => {
+    const submission = submissions.find(s => s.assignmentId.toString() === hw._id.toString());
+    return {
+      ...hw.toObject(),
+      submission: submission || null,
+      isSubmitted: !!submission,
+      isOverdue: new Date(hw.dueDate) < new Date() && !submission,
+      daysUntilDue: Math.ceil((new Date(hw.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: homeworkWithStatus.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: homeworkWithStatus
+  });
+});
+
+// GET /api/student/homework/:homeworkId - Get single homework with submission
+exports.getHomeworkDetails = asyncHandler(async (req, res, next) => {
+  const { homeworkId } = req.params;
+
+  // Get student's current enrollment
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  }).populate('currentEnrollment');
+
+  if (!student || !student.currentEnrollment) {
+    return next(new ErrorResponse('Student enrollment not found', 404));
+  }
+
+  // Get homework details
+  const Assignment = require('../models/Assignment');
+  const homework = await Assignment.findOne({
+    _id: homeworkId,
+    classId: student.currentEnrollment.classId,
+    sectionId: student.currentEnrollment.sectionId,
+    schoolId: req.user.schoolId,
+    status: 'PUBLISHED',
+    isDeleted: { $ne: true }
+  }).populate('subjectId', 'name code')
+    .populate('teacherId', 'name email');
+
+  if (!homework) {
+    return next(new ErrorResponse('Homework not found', 404));
+  }
+
+  // Get student's submission if exists
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+  const submission = await AssignmentSubmission.findOne({
+    assignmentId: homeworkId,
+    studentId: student._id,
+    isDeleted: { $ne: true }
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      homework,
+      submission,
+      isSubmitted: !!submission,
+      isOverdue: new Date(homework.dueDate) < new Date() && !submission,
+      canSubmit: !submission && new Date(homework.dueDate) >= new Date()
+    }
+  });
+});
+
+// POST /api/student/homework/:homeworkId/submit - Submit homework
+exports.submitHomework = asyncHandler(async (req, res, next) => {
+  const { homeworkId } = req.params;
+  const { content, attachments } = req.body;
+
+  // Get student's current enrollment
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  }).populate('currentEnrollment');
+
+  if (!student || !student.currentEnrollment) {
+    return next(new ErrorResponse('Student enrollment not found', 404));
+  }
+
+  // Get homework details
+  const Assignment = require('../models/Assignment');
+  const homework = await Assignment.findOne({
+    _id: homeworkId,
+    classId: student.currentEnrollment.classId,
+    sectionId: student.currentEnrollment.sectionId,
+    schoolId: req.user.schoolId,
+    status: 'PUBLISHED',
+    isDeleted: { $ne: true }
+  });
+
+  if (!homework) {
+    return next(new ErrorResponse('Homework not found', 404));
+  }
+
+  // Check if submission already exists
+  const AssignmentSubmission = require('../models/AssignmentSubmission');
+  const existingSubmission = await AssignmentSubmission.findOne({
+    assignmentId: homeworkId,
+    studentId: student._id,
+    isDeleted: { $ne: true }
+  });
+
+  if (existingSubmission) {
+    return next(new ErrorResponse('Homework already submitted', 400));
+  }
+
+  // Check if homework is overdue
+  const now = new Date();
+  const dueDate = new Date(homework.dueDate);
+  const isLate = now > dueDate;
+
+  // Create submission
+  const submission = new AssignmentSubmission({
+    assignmentId: homeworkId,
+    studentId: student._id,
+    content,
+    attachments: attachments || [],
+    submittedAt: now,
+    isLate,
+    status: 'SUBMITTED'
+  });
+
+  const savedSubmission = await submission.save();
+
+  // Send notification to teacher
+  const notificationService = require('../services/notificationService');
+  await notificationService.sendNotification({
+    userId: homework.teacherId,
+    title: 'New Homework Submission',
+    message: `${student.firstName} ${student.lastName} submitted homework: ${homework.title}`,
+    type: 'HOMEWORK_SUBMISSION',
+    data: {
+      homeworkId,
+      submissionId: savedSubmission._id,
+      studentId: student._id,
+      studentName: `${student.firstName} ${student.lastName}`
+    }
+  });
+
+  logger.info('Homework submitted', {
+    requestId: req.requestId,
+    homeworkId,
+    studentId: student._id,
+    submissionId: savedSubmission._id,
+    isLate
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Homework submitted successfully',
+    data: savedSubmission
+  });
+});
+
+// GET /api/student/remarks - Get student remarks
+exports.getRemarks = asyncHandler(async (req, res, next) => {
+  const { category, type, page = 1, limit = 20 } = req.query;
+
+  // Get student profile
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  });
+
+  if (!student) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
+  // Get current academic year
+  const AcademicYear = require('../models/AcademicYear');
+  const currentAcademicYear = await AcademicYear.findOne({
+    schoolId: req.user.schoolId,
+    isActive: true
+  });
+
+  if (!currentAcademicYear) {
+    return next(new ErrorResponse('No active academic year found', 400));
+  }
+
+  // Build query
+  const StudentRemark = require('../models/StudentRemark');
+  const query = {
+    studentId: student._id,
+    schoolId: req.user.schoolId,
+    academicYearId: currentAcademicYear._id,
+    isDeleted: { $ne: true }
+  };
+
+  if (category) query.category = category;
+  if (type) query.type = type;
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const [remarks, total] = await Promise.all([
+    StudentRemark.find(query)
+      .populate('teacherId', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    StudentRemark.countDocuments(query)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    count: remarks.length,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: remarks
+  });
+});

@@ -11,6 +11,11 @@ const {
   addResult,
   updateResult,
   getDashboardStats,
+  getHomework,
+  createHomework,
+  getHomeworkSubmissions,
+  gradeHomework,
+  getHomeworkStats,
 } = require('../controllers/teacherPortalController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
@@ -432,5 +437,197 @@ router.put('/results/update', authMiddleware, authorizeRoles('teacher'), updateR
  *         description: Teacher dashboard statistics including student count, attendance, exams, etc.
  */
 router.get('/dashboard', authMiddleware, authorizeRoles('teacher'), getDashboardStats);
+
+// Homework Management Routes
+/**
+ * @swagger
+ * /teacher/homework:
+ *   get:
+ *     summary: Get homework assignments for teacher
+ *     tags: [Teacher Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: classId
+ *         schema:
+ *           type: string
+ *         description: Filter by class ID
+ *       - in: query
+ *         name: sectionId
+ *         schema:
+ *           type: string
+ *         description: Filter by section ID
+ *       - in: query
+ *         name: subjectId
+ *         schema:
+ *           type: string
+ *         description: Filter by subject ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [DRAFT, PUBLISHED, EXPIRED]
+ *         description: Filter by status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: List of homework assignments
+ */
+router.get('/homework', authMiddleware, authorizeRoles('teacher'), getHomework);
+
+/**
+ * @swagger
+ * /teacher/homework:
+ *   post:
+ *     summary: Create new homework assignment
+ *     tags: [Teacher Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - subjectId
+ *               - classId
+ *               - sectionId
+ *               - dueDate
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               subjectId:
+ *                 type: string
+ *               classId:
+ *                 type: string
+ *               sectionId:
+ *                 type: string
+ *               dueDate:
+ *                 type: string
+ *                 format: date
+ *               maxMarks:
+ *                 type: number
+ *               attachments:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               allowLateSubmission:
+ *                 type: boolean
+ *               lateSubmissionPenalty:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Homework created successfully
+ *       403:
+ *         description: No access to this class/section/subject
+ */
+router.post('/homework', authMiddleware, authorizeRoles('teacher'), createHomework);
+
+/**
+ * @swagger
+ * /teacher/homework/{homeworkId}/submissions:
+ *   get:
+ *     summary: Get homework submissions
+ *     tags: [Teacher Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: homeworkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, SUBMITTED, GRADED]
+ *         description: Filter by submission status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *     responses:
+ *       200:
+ *         description: Homework submissions with statistics
+ *       404:
+ *         description: Homework not found or access denied
+ */
+router.get('/homework/:homeworkId/submissions', authMiddleware, authorizeRoles('teacher'), getHomeworkSubmissions);
+
+/**
+ * @swagger
+ * /teacher/homework/{homeworkId}/grade:
+ *   put:
+ *     summary: Grade homework submission
+ *     tags: [Teacher Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: homeworkId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - submissionId
+ *               - marks
+ *             properties:
+ *               submissionId:
+ *                 type: string
+ *               marks:
+ *                 type: number
+ *               grade:
+ *                 type: string
+ *               feedback:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Homework graded successfully
+ *       404:
+ *         description: Submission not found
+ */
+router.put('/homework/:homeworkId/grade', authMiddleware, authorizeRoles('teacher'), gradeHomework);
+
+/**
+ * @swagger
+ * /teacher/homework/stats:
+ *   get:
+ *     summary: Get homework statistics
+ *     tags: [Teacher Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Homework statistics for teacher dashboard
+ */
+router.get('/homework/stats', authMiddleware, authorizeRoles('teacher'), getHomeworkStats);
 
 module.exports = router;
