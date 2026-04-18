@@ -533,7 +533,7 @@ const getChildTimetable = asyncHandler(async (req, res) => {
 });
 
 // GET /api/parent/homework/:studentId - Get child's homework
-exports.getChildHomework = asyncHandler(async (req, res, next) => {
+const getChildHomework = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
   const { status, page = 1, limit = 20 } = req.query;
 
@@ -620,7 +620,7 @@ exports.getChildHomework = asyncHandler(async (req, res, next) => {
 });
 
 // GET /api/parent/remarks/:studentId - Get child's remarks
-exports.getChildRemarks = asyncHandler(async (req, res, next) => {
+const getChildRemarks = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
   const { category, type, page = 1, limit = 20 } = req.query;
 
@@ -680,7 +680,7 @@ exports.getChildRemarks = asyncHandler(async (req, res, next) => {
 });
 
 // GET /api/parent/performance/:studentId - Get child's performance summary
-exports.getChildPerformance = asyncHandler(async (req, res, next) => {
+const getChildPerformance = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
 
   // Verify parent has access to this student
