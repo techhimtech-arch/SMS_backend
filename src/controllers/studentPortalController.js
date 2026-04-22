@@ -28,7 +28,7 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   const currentEnrollment = await Enrollment.findOne({
     studentId: student._id,
     schoolId: req.user.schoolId,
-    status: 'enrolled'
+    status: 'ENROLLED'
   })
     .populate('classId', 'name')
     .populate('sectionId', 'name');
@@ -130,9 +130,19 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
 exports.getAttendance = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, page = 1, limit = 50 } = req.query;
 
+  // Get student profile
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  });
+
+  if (!student) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   // Build query
   const query = {
-    studentId: req.user.userId,
+    studentId: student._id,
     schoolId: req.user.schoolId,
   };
 
@@ -156,7 +166,7 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
   const stats = await Attendance.aggregate([
     {
       $match: {
-        studentId: req.user.userId,
+        studentId: student._id,
         schoolId: req.user.schoolId,
         ...(startDate && endDate && {
           date: {
@@ -206,26 +216,38 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
 
 // GET /api/student/fees - Get student's fee details
 exports.getFees = asyncHandler(async (req, res, next) => {
+  // Get student profile
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  });
+
+  if (!student) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
+  // Get current enrollment
+  const Enrollment = require('../models/Enrollment');
+  const currentEnrollment = await Enrollment.findOne({
+    studentId: student._id,
+    schoolId: req.user.schoolId,
+    status: 'ENROLLED'
+  })
+    .populate('classId', 'name')
+    .populate('sectionId', 'name');
+
   // Get student fee structure
   const studentFee = await StudentFee.findOne({
-    studentId: req.user.userId,
+    studentId: student._id,
     schoolId: req.user.schoolId,
   });
 
   // Get payment history
   const payments = await FeePayment.find({
-    studentId: req.user.userId,
+    studentId: student._id,
     schoolId: req.user.schoolId,
   })
     .sort({ createdAt: -1 });
-
-  // Get student info
-  const student = await StudentProfile.findOne({
-    userId: req.user.userId,
-    schoolId: req.user.schoolId,
-  })
-    .populate('classId', 'name')
-    .populate('sectionId', 'name');
 
   res.status(200).json({
     success: true,
@@ -235,8 +257,8 @@ exports.getFees = asyncHandler(async (req, res, next) => {
         admissionNumber: student.admissionNumber,
         firstName: student.firstName,
         lastName: student.lastName,
-        class: student.classId?.name,
-        section: student.sectionId?.name,
+        class: currentEnrollment?.classId?.name,
+        section: currentEnrollment?.sectionId?.name,
       },
       feeStructure: studentFee ? {
         totalAmount: studentFee.totalAmount,
@@ -254,9 +276,18 @@ exports.getFees = asyncHandler(async (req, res, next) => {
 exports.getResults = asyncHandler(async (req, res, next) => {
   const { examId, subjectId, page = 1, limit = 50 } = req.query;
 
+  const student = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+  });
+
+  if (!student) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   // Build query
   const query = {
-    studentId: req.user.userId,
+    studentId: student._id,
     schoolId: req.user.schoolId,
   };
 
@@ -276,7 +307,7 @@ exports.getResults = asyncHandler(async (req, res, next) => {
 
   // Calculate overall statistics
   const allResults = await Result.find({
-    studentId: req.user.userId,
+    studentId: student._id,
     schoolId: req.user.schoolId,
   });
 
@@ -361,7 +392,7 @@ exports.getExams = asyncHandler(async (req, res, next) => {
   const currentEnrollment = await Enrollment.findOne({
     studentId: student._id,
     schoolId: req.user.schoolId,
-    status: 'enrolled'
+    status: 'ENROLLED'
   });
 
   if (!currentEnrollment) {
@@ -422,7 +453,7 @@ exports.getAnnouncements = asyncHandler(async (req, res, next) => {
   const currentEnrollment = await Enrollment.findOne({
     studentId: student._id,
     schoolId: req.user.schoolId,
-    status: 'enrolled'
+    status: 'ENROLLED'
   });
 
   const now = new Date();
@@ -503,7 +534,7 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
   const currentEnrollment = await Enrollment.findOne({
     studentId: student._id,
     schoolId,
-    status: 'enrolled'
+    status: 'ENROLLED'
   })
     .populate('classId', 'name')
     .populate('sectionId', 'name');
@@ -520,7 +551,7 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     Attendance.aggregate([
       {
         $match: {
-          studentId,
+          studentId: student._id, // Use student._id instead of req.user.userId
           schoolId,
           date: {
             $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -537,12 +568,12 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     ]),
     // Fee information
     StudentFee.findOne({
-      studentId,
+      studentId: student._id, // Use student._id
       schoolId,
     }),
     // Latest results
     Result.find({
-      studentId,
+      studentId: student._id, // Use student._id
       schoolId,
     })
     .sort({ createdAt: -1 })
@@ -552,7 +583,7 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     // Upcoming exams
     Exam.find({
       schoolId,
-      classId: student.classId,
+      classId: currentEnrollment ? currentEnrollment.classId : null, // Use currentEnrollment.classId
       examDate: { $gt: new Date() },
       isActive: true,
     })
@@ -567,10 +598,10 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
       $or: [
         { targetAudience: 'all_students' },
         { targetAudience: 'all' },
-        { 
+        ...(currentEnrollment ? [{ 
           targetAudience: 'specific_classes',
-          targetClasses: { $in: [student.classId] }
-        },
+          targetClasses: { $in: [currentEnrollment.classId._id || currentEnrollment.classId] }
+        }] : []),
       ],
     }),
   ]);
