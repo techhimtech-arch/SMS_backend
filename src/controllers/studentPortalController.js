@@ -6,6 +6,8 @@ const FeePayment = require('../models/FeePayment');
 const Result = require('../models/Result');
 const Exam = require('../models/Exam');
 const Announcement = require('../models/Announcement');
+const Assignment = require('../models/Assignment');
+const AssignmentSubmission = require('../models/AssignmentSubmission');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 const logger = require('../utils/logger');
@@ -140,9 +142,21 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Student profile not found', 404));
   }
 
-  // Build query
-  const query = {
+  // Get current enrollment strictly
+  const Enrollment = require('../models/Enrollment');
+  const currentEnrollment = await Enrollment.findOne({
     studentId: student._id,
+    schoolId: req.user.schoolId,
+    status: 'ENROLLED'
+  });
+
+  // Build query: Checking studentId, or enrollmentId matching student ID (legacy bug), or true enrollment ID
+  const query = {
+    $or: [
+      { studentId: student._id }, 
+      { enrollmentId: student._id },
+      ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+    ],
     schoolId: req.user.schoolId,
   };
 
@@ -166,7 +180,11 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
   const stats = await Attendance.aggregate([
     {
       $match: {
-        studentId: student._id,
+        $or: [
+          { studentId: student._id }, 
+          { enrollmentId: student._id },
+          ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+        ],
         schoolId: req.user.schoolId,
         ...(startDate && endDate && {
           date: {
@@ -226,7 +244,7 @@ exports.getFees = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Student profile not found', 404));
   }
 
-  // Get current enrollment
+  // Get current enrollment strictly
   const Enrollment = require('../models/Enrollment');
   const currentEnrollment = await Enrollment.findOne({
     studentId: student._id,
@@ -238,13 +256,19 @@ exports.getFees = asyncHandler(async (req, res, next) => {
 
   // Get student fee structure
   const studentFee = await StudentFee.findOne({
-    studentId: student._id,
+    $or: [
+      { studentId: student._id },
+      ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+    ],
     schoolId: req.user.schoolId,
   });
 
   // Get payment history
   const payments = await FeePayment.find({
-    studentId: student._id,
+    $or: [
+      { studentId: student._id },
+      ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+    ],
     schoolId: req.user.schoolId,
   })
     .sort({ createdAt: -1 });
@@ -542,21 +566,70 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
   // Get stats in parallel
   const [
     attendanceStats,
+    todayAttendance,
+    overallAttendanceStats,
     feeStats,
     resultStats,
     upcomingExams,
     unreadAnnouncements,
+    assignmentStats,
   ] = await Promise.all([
     // Attendance statistics for current month
     Attendance.aggregate([
       {
         $match: {
-          studentId: student._id, // Use student._id instead of req.user.userId
+          $or: [
+            { studentId: student._id },
+            { enrollmentId: student._id },
+            ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+          ],
           schoolId,
           date: {
             $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
             $lte: new Date(),
           },
+        },
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    // Today's attendance (specific status)
+    (async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const todayRecord = await Attendance.findOne({
+        $or: [
+          { studentId: student._id },
+          { enrollmentId: student._id },
+          ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+        ],
+        schoolId,
+        date: { $gte: today, $lt: tomorrow }
+      });
+      
+      return {
+        status: todayRecord?.status || 'Not Marked',
+        date: today,
+        remarks: todayRecord?.remarks || null
+      };
+    })(),
+    // Overall attendance statistics (all time)
+    Attendance.aggregate([
+      {
+        $match: {
+          $or: [
+            { studentId: student._id },
+            { enrollmentId: student._id },
+            ...(currentEnrollment ? [{ enrollmentId: currentEnrollment._id }] : [])
+          ],
+          schoolId,
         },
       },
       {
@@ -604,9 +677,49 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
         }] : []),
       ],
     }),
+    // Assignment statistics (pending, completed, overdue)
+    (async () => {
+      if (!currentEnrollment) {
+        return { pending: 0, completed: 0, overdue: 0 };
+      }
+      
+      // Get all assignments for student's class
+      const assignments = await Assignment.find({
+        classId: currentEnrollment.classId,
+        sectionId: currentEnrollment.sectionId,
+        schoolId,
+        isDeleted: { $ne: true },
+        status: 'PUBLISHED'
+      });
+      
+      // Get student's submissions
+      const submissions = await AssignmentSubmission.find({
+        studentId: student._id,
+        isDeleted: { $ne: true }
+      });
+      
+      const submissionMap = new Map(submissions.map(s => [s.assignmentId.toString(), s]));
+      
+      let pending = 0, completed = 0, overdue = 0;
+      const now = new Date();
+      
+      assignments.forEach(assignment => {
+        const isSubmitted = submissionMap.has(assignment._id.toString());
+        if (isSubmitted) {
+          completed++;
+        } else {
+          pending++;
+          if (assignment.dueDate && assignment.dueDate < now) {
+            overdue++;
+          }
+        }
+      });
+      
+      return { pending, completed, overdue, total: assignments.length };
+    })(),
   ]);
 
-  // Calculate attendance percentage
+  // Calculate attendance statistics for this month
   const attendanceData = {
     totalDays: attendanceStats.reduce((sum, stat) => sum + stat.count, 0),
     present: attendanceStats.find(s => s._id === 'Present')?.count || 0,
@@ -618,6 +731,18 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     ? ((attendanceData.present / attendanceData.totalDays) * 100).toFixed(2)
     : 0;
 
+  // Calculate overall attendance statistics (all time)
+  const overallAttendanceData = {
+    totalDays: overallAttendanceStats.reduce((sum, stat) => sum + stat.count, 0),
+    present: overallAttendanceStats.find(s => s._id === 'Present')?.count || 0,
+    absent: overallAttendanceStats.find(s => s._id === 'Absent')?.count || 0,
+    late: overallAttendanceStats.find(s => s._id === 'Late')?.count || 0,
+  };
+
+  const overallPercentage = overallAttendanceData.totalDays > 0 
+    ? ((overallAttendanceData.present / overallAttendanceData.totalDays) * 100).toFixed(2)
+    : 0;
+
   res.status(200).json({
     success: true,
     data: {
@@ -626,11 +751,30 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
         name: `${student.firstName} ${student.lastName}`,
         class: currentEnrollment?.classId?.name || 'Not Enrolled',
         section: currentEnrollment?.sectionId?.name || 'Not Enrolled',
+        rollNumber: currentEnrollment?.rollNumber || '-',
         admissionNumber: student.admissionNumber,
+        status: currentEnrollment?.status || 'Not Enrolled',
       },
       attendance: {
-        ...attendanceData,
-        percentage: parseFloat(attendancePercentage),
+        today: {
+          status: todayAttendance.status,
+          date: todayAttendance.date,
+          remarks: todayAttendance.remarks,
+        },
+        thisMonth: {
+          totalDays: attendanceData.totalDays,
+          present: attendanceData.present,
+          absent: attendanceData.absent,
+          late: attendanceData.late,
+          percentage: parseFloat(attendancePercentage),
+        },
+        overall: {
+          totalDays: overallAttendanceData.totalDays,
+          present: overallAttendanceData.present,
+          absent: overallAttendanceData.absent,
+          late: overallAttendanceData.late,
+          percentage: parseFloat(overallPercentage),
+        }
       },
       fees: feeStats ? {
         totalAmount: feeStats.totalAmount,
@@ -638,6 +782,12 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
         balanceAmount: feeStats.balanceAmount,
         dueDate: feeStats.dueDate,
       } : null,
+      assignments: {
+        pending: assignmentStats.pending || 0,
+        completed: assignmentStats.completed || 0,
+        overdue: assignmentStats.overdue || 0,
+        total: assignmentStats.total || 0,
+      },
       recentResults: resultStats,
       upcomingExams,
       unreadAnnouncements,

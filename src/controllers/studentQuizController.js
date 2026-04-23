@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Quiz = require('../models/Quiz');
 const QuizSubmission = require('../models/QuizSubmission');
 const User = require('../models/User');
+const StudentProfile = require('../models/StudentProfile');
 const Enrollment = require('../models/Enrollment');
 const ErrorResponse = require('../utils/errorResponse');
 const logger = require('../utils/logger');
@@ -14,9 +15,20 @@ const logger = require('../utils/logger');
 exports.getAvailableQuizzes = asyncHandler(async (req, res, next) => {
   const { page = 1, limit = 20 } = req.query;
 
-  // Get student's enrollment
+  // Get student profile first (since enrollment uses studentId which is StudentProfile._id, not User._id)
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
+  // Get student's enrollment using StudentProfile ID
   const enrollment = await Enrollment.findOne({
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     status: 'ENROLLED',
     isDeleted: { $ne: true }
   }).populate('classId sectionId');
@@ -50,7 +62,7 @@ exports.getAvailableQuizzes = asyncHandler(async (req, res, next) => {
   const quizIds = uniqueQuizzes.map(q => q._id);
   const submissions = await QuizSubmission.find({
     quizId: { $in: quizIds },
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     isDeleted: { $ne: true }
   });
 
@@ -92,6 +104,17 @@ exports.getAvailableQuizzes = asyncHandler(async (req, res, next) => {
  * @access  Private (Student)
  */
 exports.startQuiz = asyncHandler(async (req, res, next) => {
+  // Get student profile first
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   const quiz = await Quiz.findById(req.params.id);
 
   if (!quiz) {
@@ -105,7 +128,7 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
 
   // Check if student is enrolled
   const enrollment = await Enrollment.findOne({
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     classId: quiz.classId,
     sectionId: quiz.sectionId,
     status: 'ENROLLED',
@@ -119,7 +142,7 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
   // Check previous attempts
   const previousAttempts = await QuizSubmission.countDocuments({
     quizId: quiz._id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     isDeleted: { $ne: true }
   });
 
@@ -130,7 +153,7 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
   // Check if there's an ongoing attempt
   const ongoingAttempt = await QuizSubmission.findOne({
     quizId: quiz._id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     status: { $in: ['STARTED', 'IN_PROGRESS'] },
     isDeleted: { $ne: true }
   });
@@ -140,12 +163,12 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
   }
 
   // Get questions for student (with randomization if enabled)
-  const questions = quiz.getQuestionsForStudent(req.user.userId);
+  const questions = quiz.getQuestionsForStudent(studentProfile._id);
 
   // Create new submission
   const submission = new QuizSubmission({
     quizId: quiz._id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     schoolId: req.user.schoolId,
     attemptNumber: previousAttempts + 1,
     totalQuestions: questions.length,
@@ -201,9 +224,20 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
 exports.submitAnswer = asyncHandler(async (req, res, next) => {
   const { questionIndex, selectedAnswer } = req.body;
 
+  // Get student profile first
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   const submission = await QuizSubmission.findOne({
     quizId: req.params.id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     status: { $in: ['STARTED', 'IN_PROGRESS'] },
     isDeleted: { $ne: true }
   });
@@ -246,9 +280,20 @@ exports.submitAnswer = asyncHandler(async (req, res, next) => {
  * @access  Private (Student)
  */
 exports.submitQuiz = asyncHandler(async (req, res, next) => {
+  // Get student profile first
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   const submission = await QuizSubmission.findOne({
     quizId: req.params.id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     status: { $in: ['STARTED', 'IN_PROGRESS'] },
     isDeleted: { $ne: true }
   }).populate('quizId');
@@ -265,7 +310,7 @@ exports.submitQuiz = asyncHandler(async (req, res, next) => {
 
   logger.info('Quiz submitted', {
     quizId: quiz._id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     attemptNumber: submission.attemptNumber,
     marksObtained: submission.marksObtained,
     percentage: submission.percentage
@@ -308,9 +353,20 @@ exports.submitQuiz = asyncHandler(async (req, res, next) => {
  * @access  Private (Student)
  */
 exports.getQuizResults = asyncHandler(async (req, res, next) => {
+  // Get student profile first
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   const submission = await QuizSubmission.findOne({
     quizId: req.params.id,
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     status: 'SUBMITTED',
     isDeleted: { $ne: true }
   })
@@ -373,7 +429,21 @@ exports.getQuizResults = asyncHandler(async (req, res, next) => {
 exports.getQuizHistory = asyncHandler(async (req, res, next) => {
   const { page = 1, limit = 20 } = req.query;
 
-  const submissions = await QuizSubmission.findByStudent(req.user.userId)
+  // Get student profile first
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
+  const submissions = await QuizSubmission.find({
+    studentId: studentProfile._id,
+    isDeleted: { $ne: true }
+  })
     .populate({
       path: 'quizId',
       populate: {
@@ -386,7 +456,7 @@ exports.getQuizHistory = asyncHandler(async (req, res, next) => {
     .sort({ submittedAt: -1 });
 
   const total = await QuizSubmission.countDocuments({
-    studentId: req.user.userId,
+    studentId: studentProfile._id,
     isDeleted: { $ne: true }
   });
 
@@ -407,10 +477,21 @@ exports.getQuizHistory = asyncHandler(async (req, res, next) => {
  * @access  Private (Student)
  */
 exports.getQuizStats = asyncHandler(async (req, res, next) => {
+  // Get student profile first
+  const studentProfile = await StudentProfile.findOne({
+    userId: req.user.userId,
+    schoolId: req.user.schoolId,
+    isDeleted: { $ne: true }
+  });
+
+  if (!studentProfile) {
+    return next(new ErrorResponse('Student profile not found', 404));
+  }
+
   const stats = await QuizSubmission.aggregate([
     {
       $match: {
-        studentId: req.user.userId,
+        studentId: studentProfile._id,
         status: 'SUBMITTED',
         isDeleted: { $ne: true }
       }
