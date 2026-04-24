@@ -238,6 +238,7 @@ const getAnnouncements = asyncHandler(async (req, res) => {
     Announcement.find(query)
       .populate('createdBy', 'name email')
       .populate('updatedBy', 'name email')
+      .populate('schoolId', 'name email')
       .sort(sort)
       .skip(skip)
       .limit(limitNum),
@@ -288,7 +289,11 @@ const getMyAnnouncements = asyncHandler(async (req, res) => {
   const skip = (pageNum - 1) * limitNum;
 
   const [announcements, total] = await Promise.all([
-    query.skip(skip).limit(limitNum),
+    query
+      .populate('createdBy', 'name email')
+      .populate('schoolId', 'name email')
+      .skip(skip)
+      .limit(limitNum),
     Announcement.findVisibleToUser(req.user.id, user.role, user.classId, user.sectionId).countDocuments()
   ]);
 
@@ -310,7 +315,8 @@ const getMyAnnouncements = asyncHandler(async (req, res) => {
 const getAnnouncement = asyncHandler(async (req, res) => {
   const announcement = await Announcement.findById(req.params.id)
     .populate('createdBy', 'name email')
-    .populate('updatedBy', 'name email');
+    .populate('updatedBy', 'name email')
+    .populate('schoolId', 'name email');
 
   if (!announcement) {
     return res.status(404).json({
@@ -394,7 +400,7 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
     req.params.id,
     updates,
     { new: true, runValidators: true }
-  ).populate('createdBy', 'name email');
+  ).populate('createdBy', 'name email').populate('schoolId', 'name email');
 
   // Create notifications if announcement was published
   if (wasPublished) {
