@@ -35,6 +35,16 @@ exports.createQuiz = asyncHandler(async (req, res, next) => {
     isSchoolWide
   } = req.body;
 
+  // Validate class and section requirement
+  if (!isSchoolWide) {
+    if (!classId) {
+      return next(new ErrorResponse('Class ID is required for class-specific quizzes', 400));
+    }
+    if (!sectionId) {
+      return next(new ErrorResponse('Section ID is required for class-specific quizzes', 400));
+    }
+  }
+
   // Validate teacher permission
   if (!isSchoolWide) {
     const hasPermission = await TeacherAssignment.findOne({

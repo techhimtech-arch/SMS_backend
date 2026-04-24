@@ -83,6 +83,12 @@ const auditLogSchema = new mongoose.Schema(
         'ANNOUNCEMENT_UPDATE',
         'ANNOUNCEMENT_DELETE',
         'ANNOUNCEMENT_SEND',
+        // Quiz management
+        'QUIZ_CREATE',
+        'QUIZ_UPDATE',
+        'QUIZ_DELETE',
+        'QUIZ_PUBLISH',
+        'QUIZ_SUBMISSION',
         // School management
         'SCHOOL_REGISTER',
         'SCHOOL_UPDATE',
@@ -111,6 +117,8 @@ const auditLogSchema = new mongoose.Schema(
         'TeacherAssignment',
         'Subject',
         'Announcement',
+        'Quiz',
+        'QuizSubmission',
         'School',
         'ReportCard',
         'Other',

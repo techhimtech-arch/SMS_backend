@@ -49,6 +49,7 @@ const feeRoutes = require('./routes/feeRoutes');
 // Quiz system routes
 const quizRoutes = require('./routes/quizRoutes');
 const studentQuizRoutes = require('./routes/studentQuizRoutes');
+const adminQuizRoutes = require('./routes/adminQuizRoutes');
 // Student remarks system routes
 const studentRemarkRoutes = require('./routes/studentRemarkRoutes');
 
@@ -192,6 +193,7 @@ app.use('/api/v1/admission/bulk', bulkAdmissionRoutes);
 // Quiz system routes
 app.use('/api/v1/teacher/quizzes', quizRoutes);
 app.use('/api/v1/student/quizzes', studentQuizRoutes);
+app.use('/api/v1/admin/quizzes', adminQuizRoutes);
 // Student remarks system routes
 app.use('/api/v1/student-remarks', studentRemarkRoutes);
 

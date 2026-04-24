@@ -28,16 +28,42 @@ const validateCreateQuiz = [
     .withMessage('Invalid subject ID'),
     
   body('classId')
+    .if(() => {
+      // classId required only if not school-wide
+      return false; // We'll use custom validator below
+    })
     .notEmpty()
     .withMessage('Class ID is required')
-    .custom(isValidObjectId)
-    .withMessage('Invalid class ID'),
+    .custom((value, { req }) => {
+      // Skip validation if school-wide quiz
+      if (req.body.isSchoolWide === true) {
+        return true;
+      }
+      // For class-specific quiz, classId is required
+      if (!value) {
+        throw new Error('Class ID is required for class-specific quizzes');
+      }
+      if (!isValidObjectId(value)) {
+        throw new Error('Invalid class ID');
+      }
+      return true;
+    }),
     
   body('sectionId')
-    .notEmpty()
-    .withMessage('Section ID is required')
-    .custom(isValidObjectId)
-    .withMessage('Invalid section ID'),
+    .custom((value, { req }) => {
+      // Skip validation if school-wide quiz
+      if (req.body.isSchoolWide === true) {
+        return true;
+      }
+      // For class-specific quiz, sectionId is required
+      if (!value) {
+        throw new Error('Section ID is required for class-specific quizzes');
+      }
+      if (!isValidObjectId(value)) {
+        throw new Error('Invalid section ID');
+      }
+      return true;
+    }),
     
   body('quizType')
     .optional()

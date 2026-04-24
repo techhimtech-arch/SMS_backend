@@ -20,13 +20,13 @@ const quizSchema = new mongoose.Schema({
   },
   classId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
-    required: [true, 'Class ID is required']
+    ref: 'Class'
+    // Optional for school-wide quizzes
   },
   sectionId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Section',
-    required: [true, 'Section ID is required']
+    ref: 'Section'
+    // Optional for school-wide quizzes
   },
   teacherId: {
     type: mongoose.Schema.Types.ObjectId,
