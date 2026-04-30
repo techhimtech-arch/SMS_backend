@@ -7,6 +7,11 @@ const teacherAssignmentSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Teacher ID is required']
     },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
+      required: [true, 'Academic year ID is required']
+    },
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Class',
@@ -35,9 +40,9 @@ const teacherAssignmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound unique index: same teacher cannot be assigned to same class+section+subject twice
+// Compound unique index: same teacher cannot be assigned to same class+section+subject twice in same academic year
 teacherAssignmentSchema.index(
-  { teacherId: 1, classId: 1, sectionId: 1, subjectId: 1, schoolId: 1 },
+  { teacherId: 1, academicYearId: 1, classId: 1, sectionId: 1, subjectId: 1, schoolId: 1 },
   { unique: true }
 );
 

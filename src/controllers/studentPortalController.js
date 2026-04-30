@@ -687,6 +687,7 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
       const assignments = await Assignment.find({
         classId: currentEnrollment.classId,
         sectionId: currentEnrollment.sectionId,
+        ...(req.user.academicYearId ? { academicYearId: req.user.academicYearId } : {}),
         schoolId,
         isDeleted: { $ne: true },
         status: 'PUBLISHED'
@@ -814,6 +815,7 @@ exports.getHomework = asyncHandler(async (req, res, next) => {
   const query = {
     classId: student.currentEnrollment.classId,
     sectionId: student.currentEnrollment.sectionId,
+    ...(req.user.academicYearId ? { academicYearId: req.user.academicYearId } : {}),
     schoolId: req.user.schoolId,
     isDeleted: { $ne: true },
     status: 'PUBLISHED'

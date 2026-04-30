@@ -571,14 +571,39 @@ exports.getQuizStats = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Student profile not found', 404));
   }
 
+  // NOTE: A student can attempt the same quiz multiple times.
+  // For "stats", we count EACH QUIZ ONCE by taking the best completed attempt per quiz.
+  const completedStatuses = ['SUBMITTED', 'AUTO_SUBMITTED', 'TIMED_OUT'];
+
   const stats = await QuizSubmission.aggregate([
     {
       $match: {
         studentId: studentProfile._id,
-        status: 'SUBMITTED',
+        status: { $in: completedStatuses },
         isDeleted: { $ne: true }
       }
     },
+    // Sort so that the first doc per quiz is the best attempt (tie-breaker: latest submittedAt)
+    {
+      $sort: {
+        quizId: 1,
+        percentage: -1,
+        submittedAt: -1,
+        createdAt: -1
+      }
+    },
+    // Pick best attempt per quizId
+    {
+      $group: {
+        _id: '$quizId',
+        marksObtained: { $first: '$marksObtained' },
+        percentage: { $first: '$percentage' },
+        passed: { $first: '$passed' },
+        correctAnswers: { $first: '$correctAnswers' },
+        totalQuestions: { $first: '$totalQuestions' }
+      }
+    },
+    // Aggregate across unique quizzes
     {
       $group: {
         _id: null,

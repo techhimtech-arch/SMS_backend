@@ -29,6 +29,11 @@ const assignmentSchema = new mongoose.Schema({
     ref: 'Section',
     required: [true, 'Section ID is required']
   },
+  academicYearId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYear',
+    required: [true, 'Academic year ID is required']
+  },
   teacherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -104,6 +109,7 @@ const assignmentSchema = new mongoose.Schema({
 assignmentSchema.index({ classId: 1, sectionId: 1, dueDate: 1 });
 assignmentSchema.index({ subjectId: 1 });
 assignmentSchema.index({ teacherId: 1 });
+assignmentSchema.index({ academicYearId: 1, classId: 1, sectionId: 1 });
 assignmentSchema.index({ status: 1 });
 assignmentSchema.index({ isDeleted: 1 });
 assignmentSchema.index({ dueDate: 1 });

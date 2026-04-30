@@ -25,10 +25,24 @@ const createAssignment = asyncHandler(async (req, res) => {
     lateSubmissionPenalty
   } = req.body;
 
+  if (!req.user.academicYearId) {
+    return res.status(400).json({
+      success: false,
+      message: 'No current academic year is set for this school. Please set current academic year first.'
+    });
+  }
+
   // Validate teacher permission
   if (req.user.role === 'teacher') {
     // Teachers can only create assignments for their assigned subjects/classes
-    const hasPermission = await checkTeacherPermission(req.user.id, subjectId, classId, sectionId);
+    const hasPermission = await checkTeacherPermission({
+      teacherId: req.user.id,
+      subjectId,
+      classId,
+      sectionId,
+      schoolId: req.user.schoolId,
+      academicYearId: req.user.academicYearId
+    });
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
@@ -43,6 +57,7 @@ const createAssignment = asyncHandler(async (req, res) => {
     subjectId,
     classId,
     sectionId,
+    academicYearId: req.user.academicYearId,
     teacherId: req.user.id,
     dueDate: new Date(dueDate),
     maxMarks,
@@ -97,11 +112,13 @@ const getAssignments = asyncHandler(async (req, res) => {
   // Apply filters based on user role
   if (req.user.role === 'teacher') {
     query.teacherId = req.user.id;
+    if (req.user.academicYearId) query.academicYearId = req.user.academicYearId;
   } else if (req.user.role === 'student') {
     const user = await User.findById(req.user.id);
     query.classId = user.classId;
     query.sectionId = user.sectionId;
     query.status = 'PUBLISHED';
+    if (req.user.academicYearId) query.academicYearId = req.user.academicYearId;
   } else if (req.user.role === 'parent') {
     // Parents can see assignments of their children
     const user = await User.findById(req.user.id).populate('children');
@@ -109,6 +126,7 @@ const getAssignments = asyncHandler(async (req, res) => {
       query.classId = { $in: user.children.map(c => c.classId) };
       query.sectionId = { $in: user.children.map(c => c.sectionId) };
       query.status = 'PUBLISHED';
+      if (req.user.academicYearId) query.academicYearId = req.user.academicYearId;
     }
   }
 
@@ -118,6 +136,9 @@ const getAssignments = asyncHandler(async (req, res) => {
   if (classId && req.user.role !== 'student') query.classId = classId;
   if (sectionId && req.user.role !== 'student') query.sectionId = sectionId;
   if (teacherId && ['admin', 'principal'].includes(req.user.role)) query.teacherId = teacherId;
+  if (req.query.academicYearId && ['admin', 'principal', 'school_admin', 'superadmin'].includes(req.user.role)) {
+    query.academicYearId = req.query.academicYearId;
+  }
 
   // Sort options
   const sort = {};
@@ -597,18 +618,66 @@ const gradeSubmission = asyncHandler(async (req, res) => {
 /**
  * Helper function to check if teacher has permission for subject/class/section
  */
-const checkTeacherPermission = async (teacherId, subjectId, classId, sectionId) => {
-  const TeacherSubjectAssignment = require('../models/TeacherSubjectAssignment');
+const checkTeacherPermission = async ({
+  teacherId,
+  subjectId,
+  classId,
+  sectionId,
+  schoolId,
+  academicYearId
+}) => {
+  if (!academicYearId) return false;
 
-  const assignment = await TeacherSubjectAssignment.findOne({
+  // Primary source of truth in this codebase for teacher->class/section/subject mapping
+  // (teacherAssignmentController + TeacherAssignment model) scoped to academic year
+  const TeacherAssignment = require('../models/TeacherAssignment');
+
+  let assignment = await TeacherAssignment.findOne({
+    teacherId,
+    academicYearId,
+    subjectId,
+    classId,
+    sectionId,
+    schoolId,
+    isActive: true
+  });
+
+  if (assignment) return true;
+
+  // Auto-backfill for legacy TeacherAssignment docs created before academicYearId existed
+  // (safe enough because we scope it to exact teacher+class+section+subject+school match)
+  const legacyTeacherAssignment = await TeacherAssignment.findOne({
     teacherId,
     subjectId,
     classId,
     sectionId,
-    isActive: true
+    schoolId,
+    isActive: true,
+    academicYearId: { $exists: false }
   });
 
-  return !!assignment;
+  if (legacyTeacherAssignment) {
+    legacyTeacherAssignment.academicYearId = academicYearId;
+    await legacyTeacherAssignment.save();
+    return true;
+  }
+
+  // Fallback to TeacherSubjectAssignment (academic year scoped there as academicSessionId)
+  const TeacherSubjectAssignment = require('../models/TeacherSubjectAssignment');
+  const subjectAssignment = await TeacherSubjectAssignment.findOne({
+    teacherId,
+    subjectId,
+    classId,
+    sectionId,
+    schoolId,
+    academicSessionId: academicYearId,
+    isActive: true,
+    isDeleted: { $ne: true }
+  });
+
+  if (subjectAssignment) return true;
+
+  return false;
 };
 
 /**

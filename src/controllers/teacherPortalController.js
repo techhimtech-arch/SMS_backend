@@ -661,6 +661,7 @@ exports.getHomework = asyncHandler(async (req, res, next) => {
   const query = {
     teacherId: req.user.userId,
     schoolId: req.user.schoolId,
+    ...(req.user.academicYearId ? { academicYearId: req.user.academicYearId } : {}),
     isDeleted: { $ne: true }
   };
 
@@ -710,10 +711,20 @@ exports.createHomework = asyncHandler(async (req, res, next) => {
     lateSubmissionPenalty
   } = req.body;
 
+  if (!req.user.academicYearId) {
+    return next(
+      new ErrorResponse(
+        'No current academic year is set for this school. Please set current academic year first.',
+        400
+      )
+    );
+  }
+
   // Verify teacher has access to this class/section/subject
   const assignments = await TeacherAssignment.find({
     teacherId: req.user.userId,
     schoolId: req.user.schoolId,
+    academicYearId: req.user.academicYearId,
     classId,
     sectionId,
     subjectId,
@@ -730,6 +741,7 @@ exports.createHomework = asyncHandler(async (req, res, next) => {
     subjectId,
     classId,
     sectionId,
+    academicYearId: req.user.academicYearId,
     teacherId: req.user.userId,
     dueDate: new Date(dueDate),
     maxMarks,
@@ -747,6 +759,7 @@ exports.createHomework = asyncHandler(async (req, res, next) => {
   const enrollments = await Enrollment.find({
     classId,
     sectionId,
+    ...(req.user.academicYearId ? { academicYearId: req.user.academicYearId } : {}),
     status: 'ENROLLED',
     isDeleted: { $ne: true }
   }).populate('studentId', 'userId');

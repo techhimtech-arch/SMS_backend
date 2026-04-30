@@ -9,9 +9,20 @@ const mongoose = require('mongoose');
 const createAssignment = asyncHandler(async (req, res, next) => {
   const { teacherId, classId, sectionId, subjectId } = req.body;
   const schoolId = req.user.schoolId;
+  const academicYearId = req.user.academicYearId;
+
+  if (!academicYearId) {
+    return next(
+      new ErrorResponse(
+        'No current academic year is set for this school. Please set current academic year before assigning teachers.',
+        400
+      )
+    );
+  }
 
   const assignment = await TeacherAssignment.create({
     teacherId,
+    academicYearId,
     classId,
     sectionId,
     subjectId,
@@ -29,11 +40,11 @@ const createAssignment = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/teacher-assignments
 // @access  Private (superadmin, school_admin, teacher)
 const getAssignments = asyncHandler(async (req, res, next) => {
-  const { schoolId, role, _id: userId } = req.user;
+  const { schoolId, role, _id: userId, academicYearId: currentAcademicYearId } = req.user;
 
   // Pagination
-  let page = parseInt(req.query.page) || 1;
-  let limit = parseInt(req.query.limit) || 10;
+  let page = Number.parseInt(req.query.page, 10) || 1;
+  let limit = Number.parseInt(req.query.limit, 10) || 10;
 
   if (page < 1) page = 1;
   if (limit < 1) limit = 10;
@@ -43,6 +54,20 @@ const getAssignments = asyncHandler(async (req, res, next) => {
 
   // Build query
   let query = { schoolId: new mongoose.Types.ObjectId(schoolId) };
+
+  // Default to current academic year unless explicitly provided
+  // Also include legacy records (missing academicYearId) and backfill them to current year.
+  let requestedAcademicYearId = null;
+  if (req.query.academicYearId) {
+    requestedAcademicYearId = new mongoose.Types.ObjectId(req.query.academicYearId);
+    query.academicYearId = requestedAcademicYearId;
+  } else if (currentAcademicYearId) {
+    requestedAcademicYearId = new mongoose.Types.ObjectId(currentAcademicYearId);
+    query.$or = [
+      { academicYearId: requestedAcademicYearId },
+      { academicYearId: { $exists: false } }
+    ];
+  }
 
   // Default to active assignments only (unless explicitly filtering)
   if (req.query.isActive === undefined) {
@@ -78,6 +103,19 @@ const getAssignments = asyncHandler(async (req, res, next) => {
       .limit(limit)
       .sort({ createdAt: -1 })
   ]);
+
+  // Backfill legacy records to current year (only when defaulting to current year)
+  if (!req.query.academicYearId && requestedAcademicYearId) {
+    const legacyIds = assignments
+      .filter(a => !a.academicYearId)
+      .map(a => a._id);
+    if (legacyIds.length > 0) {
+      await TeacherAssignment.updateMany(
+        { _id: { $in: legacyIds }, academicYearId: { $exists: false } },
+        { $set: { academicYearId: requestedAcademicYearId } }
+      );
+    }
+  }
 
   const totalPages = Math.ceil(totalCount / limit);
 

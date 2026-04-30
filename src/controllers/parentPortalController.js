@@ -210,6 +210,7 @@ const getStudentDetail = asyncHandler(async (req, res) => {
   const assignments = await Assignment.find({
     classId: student.classId?._id,
     sectionId: student.sectionId?._id,
+    ...(req.user.academicYearId ? { academicYearId: req.user.academicYearId } : {}),
     status: 'PUBLISHED',
     isDeleted: { $ne: true }
   }).sort({ dueDate: -1 }).limit(10);
