@@ -123,7 +123,7 @@ router.post('/structure', authMiddleware, authorizeRoles('school_admin'), valida
  *       401:
  *         description: Unauthorized
  */
-router.get('/structure', authMiddleware, authorizeRoles('school_admin', 'teacher'), getFeeStructures);
+router.get('/structure', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getFeeStructures);
 
 /**
  * @swagger
@@ -185,7 +185,7 @@ router.get('/student/:studentId', authMiddleware, authorizeRoles('school_admin',
  *       401:
  *         description: Unauthorized
  */
-router.get('/class-summary', authMiddleware, authorizeRoles('school_admin', 'teacher'), getClassFeeSummary);
+router.get('/class-summary', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getClassFeeSummary);
 
 /**
  * @swagger
@@ -235,7 +235,7 @@ router.get('/class-summary', authMiddleware, authorizeRoles('school_admin', 'tea
  *       401:
  *         description: Unauthorized
  */
-router.post('/pay', authMiddleware, authorizeRoles('school_admin', 'teacher'), validatePayment, processPayment);
+router.post('/pay', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), validatePayment, processPayment);
 
 /**
  * @swagger
@@ -251,7 +251,7 @@ router.post('/pay', authMiddleware, authorizeRoles('school_admin', 'teacher'), v
  *       401:
  *         description: Unauthorized
  */
-router.get('/overdue', authMiddleware, authorizeRoles('school_admin', 'teacher'), getOverdueFees);
+router.get('/overdue', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getOverdueFees);
 
 /**
  * @swagger
@@ -343,7 +343,7 @@ router.get('/payment-history', authMiddleware, authorizeRoles('school_admin', 't
  *       401:
  *         description: Unauthorized
  */
-router.get('/reports/:reportType', authMiddleware, authorizeRoles('school_admin', 'teacher'), generateFeeReport);
+router.get('/reports/:reportType', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), generateFeeReport);
 
 /**
  * @swagger
@@ -401,7 +401,7 @@ router.post('/reminders', authMiddleware, authorizeRoles('school_admin'), sendFe
  *       401:
  *         description: Unauthorized
  */
-router.get('/dashboard', authMiddleware, authorizeRoles('school_admin', 'teacher'), getFeeDashboard);
+router.get('/dashboard', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getFeeDashboard);
 
 /**
  * @swagger

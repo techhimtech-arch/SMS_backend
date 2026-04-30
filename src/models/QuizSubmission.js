@@ -31,9 +31,17 @@ const quizSubmissionSchema = new mongoose.Schema({
   submittedAt: {
     type: Date
   },
+  lastActivityAt: {
+    type: Date,
+    default: Date.now
+  },
   timeTaken: {
     type: Number, // in seconds
     default: 0
+  },
+  sessionTimeout: {
+    type: Number, // in minutes (default 30 mins)
+    default: 30
   },
   
   // Answers
@@ -44,7 +52,7 @@ const quizSubmissionSchema = new mongoose.Schema({
     },
     selectedAnswer: {
       type: Number, // Index of selected option
-      required: true
+      default: null
     },
     isCorrect: {
       type: Boolean,

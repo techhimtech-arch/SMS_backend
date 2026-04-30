@@ -158,8 +158,69 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
     isDeleted: { $ne: true }
   });
 
+  // If there's an ongoing attempt, handle session recovery
   if (ongoingAttempt) {
-    return next(new ErrorResponse('Quiz already in progress', 400));
+    const timeoutMinutes = ongoingAttempt.sessionTimeout || 30;
+    const lastActivity = new Date(ongoingAttempt.lastActivityAt || ongoingAttempt.startedAt);
+    const minutesElapsed = (new Date() - lastActivity) / (1000 * 60);
+
+    // If session is stale (no activity for timeout period), auto-submit and allow new attempt
+    if (minutesElapsed > timeoutMinutes) {
+      // Calculate and finalize the stale session
+      ongoingAttempt.calculateResults(quiz);
+      ongoingAttempt.status = 'TIMED_OUT';
+      ongoingAttempt.submittedAt = new Date();
+      const timeTakenSeconds = Math.floor((new Date() - ongoingAttempt.startedAt) / 1000);
+      ongoingAttempt.timeTaken = timeTakenSeconds;
+      
+      await ongoingAttempt.save();
+      
+      logger.info('Stale quiz session auto-submitted', {
+        quizId: quiz._id,
+        studentId: req.user.userId,
+        minutesElapsed: minutesElapsed.toFixed(2),
+        marksObtained: ongoingAttempt.marksObtained,
+        status: 'TIMED_OUT'
+      });
+      
+      // Continue to create new submission below
+    } else {
+      // Session is still active - allow resume
+      const questions = quiz.getQuestionsForStudent(studentProfile._id);
+      
+      // Update lastActivityAt
+      ongoingAttempt.lastActivityAt = new Date();
+      await ongoingAttempt.save();
+
+      logger.info('Quiz session resumed', {
+        quizId: quiz._id,
+        studentId: req.user.userId,
+        minutesElapsed: minutesElapsed.toFixed(2)
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Quiz resumed successfully',
+        data: {
+          submissionId: ongoingAttempt._id,
+          isResumed: true,
+          quiz: {
+            _id: quiz._id,
+            title: quiz.title,
+            description: quiz.description,
+            timeLimit: quiz.timeLimit,
+            maxMarks: quiz.maxMarks,
+            passingMarks: quiz.passingMarks,
+            showCorrectAnswers: quiz.showCorrectAnswers,
+            showResultsImmediately: quiz.showResultsImmediately
+          },
+          questions,
+          timeRemaining: Math.max(0, (quiz.timeLimit * 60) - Math.floor((new Date() - ongoingAttempt.startedAt) / 1000)),
+          startedAt: ongoingAttempt.startedAt,
+          resumedAt: new Date()
+        }
+      });
+    }
   }
 
   // Get questions for student (with randomization if enabled)
@@ -262,6 +323,7 @@ exports.submitAnswer = asyncHandler(async (req, res, next) => {
     submission.answers[answerIndex].timeSpent = timeElapsed - 
       submission.answers.slice(0, answerIndex).reduce((total, a) => total + a.timeSpent, 0);
     submission.status = 'IN_PROGRESS';
+    submission.lastActivityAt = new Date(); // Track activity
     await submission.save();
   }
 
