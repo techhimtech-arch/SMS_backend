@@ -68,7 +68,12 @@ exports.getAvailableQuizzes = asyncHandler(async (req, res, next) => {
 
   // Add submission status to each quiz
   const quizzesWithStatus = uniqueQuizzes.map(quiz => {
-    const quizSubmissions = submissions.filter(s => s.quizId.toString() === quiz._id.toString());
+    // ✅ Only count COMPLETED submissions (not STARTED/IN_PROGRESS)
+    const quizSubmissions = submissions.filter(s => 
+      s.quizId.toString() === quiz._id.toString() &&
+      ['SUBMITTED', 'AUTO_SUBMITTED', 'TIMED_OUT'].includes(s.status)
+    );
+    
     const bestSubmission = quizSubmissions.reduce((best, current) => 
       (current.percentage > (best?.percentage || 0)) ? current : best, null
     );
@@ -76,7 +81,7 @@ exports.getAvailableQuizzes = asyncHandler(async (req, res, next) => {
     return {
       ...quiz.toObject(),
       submissionStatus: quizSubmissions.length > 0 ? 'ATTEMPTED' : 'NOT_ATTEMPTED',
-      attempts: quizSubmissions.length,
+      attempts: quizSubmissions.length,  // ✅ Only completed attempts count
       bestScore: bestSubmission?.percentage || 0,
       bestGrade: bestSubmission?.grade || 'F',
       canRetake: quiz.allowRetake && (quizSubmissions.length < quiz.maxAttempts),
@@ -139,10 +144,11 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('You are not enrolled in this class', 403));
   }
 
-  // Check previous attempts
+  // ✅ Check previous COMPLETED attempts only (not STARTED/IN_PROGRESS)
   const previousAttempts = await QuizSubmission.countDocuments({
     quizId: quiz._id,
     studentId: studentProfile._id,
+    status: { $in: ['SUBMITTED', 'AUTO_SUBMITTED', 'TIMED_OUT'] },
     isDeleted: { $ne: true }
   });
 
@@ -198,6 +204,13 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
         minutesElapsed: minutesElapsed.toFixed(2)
       });
 
+      // ✅ SECURITY: Strip correctAnswer from questions
+      const safeQuestions = questions.map(q => {
+        const questionObj = typeof q === 'object' ? q : q.toObject();
+        const { correctAnswer, ...safeQuestion } = questionObj;
+        return safeQuestion;
+      });
+
       return res.status(200).json({
         success: true,
         message: 'Quiz resumed successfully',
@@ -214,7 +227,7 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
             showCorrectAnswers: quiz.showCorrectAnswers,
             showResultsImmediately: quiz.showResultsImmediately
           },
-          questions,
+          questions: safeQuestions,  // ✅ Without correctAnswer
           timeRemaining: Math.max(0, (quiz.timeLimit * 60) - Math.floor((new Date() - ongoingAttempt.startedAt) / 1000)),
           startedAt: ongoingAttempt.startedAt,
           resumedAt: new Date()
@@ -255,6 +268,14 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
     attemptNumber: submission.attemptNumber
   });
 
+  // ✅ SECURITY: Strip correctAnswer from questions before sending to client
+  const safeQuestions = questions.map(q => {
+    const questionObj = typeof q === 'object' ? q : q.toObject();
+    // Remove correctAnswer from response - never send to client
+    const { correctAnswer, ...safeQuestion } = questionObj;
+    return safeQuestion;
+  });
+
   res.status(200).json({
     success: true,
     message: 'Quiz started successfully',
@@ -270,7 +291,7 @@ exports.startQuiz = asyncHandler(async (req, res, next) => {
         showCorrectAnswers: quiz.showCorrectAnswers,
         showResultsImmediately: quiz.showResultsImmediately
       },
-      questions,
+      questions: safeQuestions,  // ✅ Without correctAnswer
       timeRemaining: quiz.timeLimit * 60, // in seconds
       startedAt: submission.startedAt
     }

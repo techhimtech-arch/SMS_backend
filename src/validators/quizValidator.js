@@ -257,7 +257,27 @@ const validateUpdateQuiz = [
         throw new Error('End time must be after start time');
       }
       return true;
-    })
+    }),
+
+  body('maxAttempts')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Maximum attempts must be between 1 and 5'),
+
+  body('allowRetake')
+    .optional()
+    .isBoolean()
+    .withMessage('Allow retake must be boolean'),
+
+  body('showCorrectAnswers')
+    .optional()
+    .isBoolean()
+    .withMessage('Show correct answers must be boolean'),
+
+  body('showResultsImmediately')
+    .optional()
+    .isBoolean()
+    .withMessage('Show results immediately must be boolean')
 ];
 
 // Quiz Answer Validation

@@ -307,15 +307,22 @@ quizSchema.methods.getQuestionsForStudent = function(studentId = null) {
       }));
       
       const shuffledOptions = optionsWithIndex.sort(() => Math.random() - 0.5);
-      const correctAnswerIndex = shuffledOptions.findIndex(opt => opt.originalIndex === q.correctAnswer);
       
       return {
         ...q.toObject(),
-        options: shuffledOptions.map(opt => opt.text),
-        correctAnswer: correctAnswerIndex
+        options: shuffledOptions.map(opt => opt.text)
+        // ✅ correctAnswer removed from response
       };
     });
   }
+  
+  // ✅ SECURITY: Remove correctAnswer from all questions before returning
+  // Students should NEVER see correct answers before submission
+  questions = questions.map(q => {
+    const questionObj = q.toObject ? q.toObject() : q;
+    const { correctAnswer, ...safeQuestion } = questionObj;
+    return safeQuestion;
+  });
   
   return questions;
 };
