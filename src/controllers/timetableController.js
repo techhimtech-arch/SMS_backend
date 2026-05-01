@@ -21,6 +21,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
       sectionId,
       day,
       periodNumber,
+      period,
       subjectId,
       teacherId,
       startTime,
@@ -29,6 +30,62 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
       academicSessionId,
       semester = 'FIRST'
     } = req.body;
+
+    // Normalize period field (accept both 'period' and 'periodNumber')
+    const finalPeriodNumber = periodNumber || period;
+
+    // Normalize day (uppercase)
+    const finalDay = day ? day.toUpperCase() : day;
+
+    // Debug log
+    logger.info('Timetable create request received', {
+      finalPeriodNumber,
+      periodNumber,
+      period,
+      finalDay,
+      day
+    });
+
+    // Validate required fields
+    if (!academicSessionId || academicSessionId.trim() === '') {
+      return sendError(res, 400, 'Academic Session ID is required');
+    }
+
+    if (!classId || classId.trim() === '') {
+      return sendError(res, 400, 'Class ID is required');
+    }
+
+    if (!sectionId || sectionId.trim() === '') {
+      return sendError(res, 400, 'Section ID is required');
+    }
+
+    if (!day) {
+      return sendError(res, 400, 'Day is required');
+    }
+
+    const periodNum = parseInt(finalPeriodNumber);
+    if (!periodNumber && periodNumber !== 0) {
+      return sendError(res, 400, 'Period Number is required');
+    }
+    if (isNaN(periodNum) || periodNum < 1 || periodNum > 12) {
+      return sendError(res, 400, 'Period Number must be a number between 1 and 12');
+    }
+
+    if (!subjectId || subjectId.trim() === '') {
+      return sendError(res, 400, 'Subject ID is required');
+    }
+
+    if (!teacherId || teacherId.trim() === '') {
+      return sendError(res, 400, 'Teacher ID is required');
+    }
+
+    if (!startTime || startTime.trim() === '') {
+      return sendError(res, 400, 'Start Time is required (format: HH:MM)');
+    }
+
+    if (!endTime || endTime.trim() === '') {
+      return sendError(res, 400, 'End Time is required (format: HH:MM)');
+    }
 
     // Validate class and section exist
     const classExists = await Class.findOne({
@@ -55,36 +112,36 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
     // Check for teacher conflict
     const teacherConflict = await Timetable.checkTeacherConflict(
       teacherId,
-      day,
-      periodNumber,
+      finalDay,
+      periodNum,
       academicSessionId,
       req.user.schoolId
     );
 
     if (teacherConflict) {
-      return sendError(res, 400, `Teacher conflict: Teacher is already assigned during ${day} period ${periodNumber}`);
+      return sendError(res, 400, `Teacher conflict: Teacher is already assigned during ${finalDay} period ${periodNum}`);
     }
 
     // Check for class conflict
     const classConflict = await Timetable.checkClassConflict(
       classId,
       sectionId,
-      day,
-      periodNumber,
+      finalDay,
+      periodNum,
       academicSessionId,
       req.user.schoolId
     );
 
     if (classConflict) {
-      return sendError(res, 400, `Class conflict: Class already has another subject during ${day} period ${periodNumber}`);
+      return sendError(res, 400, `Class conflict: Class already has another subject during ${finalDay} period ${periodNum}`);
     }
 
     // Create timetable entry
     const timetableEntry = await Timetable.create({
       classId,
       sectionId,
-      day,
-      periodNumber,
+      day: finalDay,
+      periodNumber: periodNum,
       subjectId,
       teacherId,
       startTime,
@@ -127,45 +184,83 @@ const createBulkTimetable = asyncHandler(async (req, res) => {
   try {
     const { timetableSlots, academicSessionId } = req.body;
 
+    // Validate academicSessionId
+    if (!academicSessionId || academicSessionId.trim() === '') {
+      return sendError(res, 400, 'Academic Session ID is required');
+    }
+
     if (!Array.isArray(timetableSlots) || timetableSlots.length === 0) {
       return sendError(res, 400, 'Timetable slots array is required');
     }
 
     // Validate all slots before insertion
     for (const slot of timetableSlots) {
+      // Normalize period field (accept both 'period' and 'periodNumber')
+      const finalPeriodNumber = slot.periodNumber || slot.period;
+      const finalDay = slot.day ? slot.day.toUpperCase() : slot.day;
+      
+      // Validate required slot fields
+      if (!finalPeriodNumber && finalPeriodNumber !== 0) {
+        return sendError(res, 400, 'Period Number is required for all slots');
+      }
+      const periodNum = parseInt(finalPeriodNumber);
+      if (isNaN(periodNum) || periodNum < 1 || periodNum > 12) {
+        return sendError(res, 400, 'Period Number must be a number between 1 and 12 for all slots');
+      }
+      if (!finalDay) {
+        return sendError(res, 400, 'Day is required for all slots');
+      }
+      if (!slot.teacherId) {
+        return sendError(res, 400, 'Teacher ID is required for all slots');
+      }
+      if (!slot.classId || !slot.sectionId) {
+        return sendError(res, 400, 'Class ID and Section ID are required for all slots');
+      }
+
       const teacherConflict = await Timetable.checkTeacherConflict(
         slot.teacherId,
-        slot.day,
-        slot.periodNumber,
+        finalDay,
+        periodNum,
         academicSessionId,
         req.user.schoolId
       );
 
       if (teacherConflict) {
-        return sendError(res, 400, `Teacher conflict: Teacher is already assigned during ${slot.day} period ${slot.periodNumber}`);
+        return sendError(res, 400, `Teacher conflict: Teacher is already assigned during ${finalDay} period ${periodNum}`);
       }
 
       const classConflict = await Timetable.checkClassConflict(
         slot.classId,
         slot.sectionId,
-        slot.day,
-        slot.periodNumber,
+        finalDay,
+        periodNum,
         academicSessionId,
         req.user.schoolId
       );
 
       if (classConflict) {
-        return sendError(res, 400, `Class conflict: Class already has another subject during ${slot.day} period ${slot.periodNumber}`);
+        return sendError(res, 400, `Class conflict: Class already has another subject during ${finalDay} period ${periodNum}`);
       }
     }
 
-    // Add school ID and created by to all slots
-    const slotsWithMetadata = timetableSlots.map(slot => ({
-      ...slot,
-      schoolId: req.user.schoolId,
-      academicSessionId,
-      createdBy: req.user.userId
-    }));
+    // Add school ID and created by to all slots, normalize period field and day
+    const slotsWithMetadata = timetableSlots.map(slot => {
+      const normalizedSlot = { ...slot };
+      // Normalize period field if needed
+      if (normalizedSlot.period && !normalizedSlot.periodNumber) {
+        normalizedSlot.periodNumber = normalizedSlot.period;
+      }
+      // Normalize day to uppercase
+      if (normalizedSlot.day) {
+        normalizedSlot.day = normalizedSlot.day.toUpperCase();
+      }
+      return {
+        ...normalizedSlot,
+        schoolId: req.user.schoolId,
+        academicSessionId,
+        createdBy: req.user.userId
+      };
+    });
 
     // Bulk insert
     const createdSlots = await Timetable.insertMany(slotsWithMetadata);
