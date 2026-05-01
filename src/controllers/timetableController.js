@@ -64,7 +64,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
     }
 
     const periodNum = parseInt(finalPeriodNumber);
-    if (!periodNumber && periodNumber !== 0) {
+    if (!finalPeriodNumber && finalPeriodNumber !== 0) {
       return sendError(res, 400, 'Period Number is required');
     }
     if (isNaN(periodNum) || periodNum < 1 || periodNum > 12) {

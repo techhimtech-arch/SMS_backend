@@ -10,22 +10,36 @@ const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to database
-connectDB();
+let server;
 
-// Start the server
-const server = app.listen(PORT, () => {
-  logger.info('Server started', {
-    port: PORT,
-    apiDocs: `http://localhost:${PORT}/api-docs`,
-    security: ['Helmet', 'Rate Limiting', 'CORS'],
+const startServer = async () => {
+  await connectDB();
+
+  server = app.listen(PORT, () => {
+    logger.info('Server started', {
+      port: PORT,
+      apiDocs: `http://localhost:${PORT}/api-docs`,
+      security: ['Helmet', 'Rate Limiting', 'CORS'],
+    });
   });
+};
+
+startServer().catch((err) => {
+  logger.error('Server bootstrap failed', {
+    message: err.message,
+    stack: err.stack,
+  });
+  process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled Rejection', { message: err.message, stack: err.stack });
-  server.close(() => process.exit(1));
+  if (server) {
+    server.close(() => process.exit(1));
+    return;
+  }
+  process.exit(1);
 });
 
 // Handle uncaught exceptions
