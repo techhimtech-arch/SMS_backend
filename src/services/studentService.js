@@ -180,16 +180,37 @@ class StudentService {
    * Get student by ID
    */
   async getStudentById(id, schoolId) {
+    logger.info('Looking up student by id', { id, schoolId });
     const student = await Student.findOne({ _id: id, schoolId, isActive: true })
       .populate('classId', 'name')
       .populate('sectionId', 'name')
       .populate('parentUserId', 'name email');
 
-    if (!student) {
+    if (student) {
+      logger.info('Found Student model record', { id, schoolId });
+      return student;
+    }
+
+    logger.info('Student not found in Student model, falling back to StudentProfile', { id, schoolId });
+    const studentProfile = await StudentProfile.findOne({ _id: id, schoolId, isActive: true })
+      .populate('userId', 'name email role')
+      .populate('parentUserId', 'name email phone')
+      .populate({
+        path: 'currentEnrollment',
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'sectionId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      });
+
+    if (!studentProfile) {
+      logger.warn('Student not found in either Student or StudentProfile', { id, schoolId });
       throw { status: 404, message: 'Student not found' };
     }
 
-    return student;
+    logger.info('Found StudentProfile record', { id, schoolId });
+    return studentProfile;
   }
 
   /**
@@ -197,24 +218,44 @@ class StudentService {
    */
   async updateStudent(id, schoolId, updates) {
     const student = await Student.findOne({ _id: id, schoolId, isActive: true });
-    if (!student) {
+
+    if (student) {
+      const allowedUpdates = [
+        'firstName', 'lastName', 'gender', 'dateOfBirth',
+        'classId', 'sectionId', 'parentName', 'parentPhone',
+        'address', 'rollNumber', 'parentEmail'
+      ];
+
+      allowedUpdates.forEach((field) => {
+        if (updates[field] !== undefined) {
+          student[field] = updates[field];
+        }
+      });
+
+      await student.save();
+      logger.info('Updated Student model record', { id, schoolId });
+      return student;
+    }
+
+    const studentProfile = await StudentProfile.findOne({ _id: id, schoolId, isActive: true });
+    if (!studentProfile) {
       throw { status: 404, message: 'Student not found' };
     }
 
-    const allowedUpdates = [
-      'firstName', 'lastName', 'gender', 'dateOfBirth',
-      'classId', 'sectionId', 'parentName', 'parentPhone',
-      'address', 'rollNumber', 'parentEmail'
+    const allowedProfileUpdates = [
+      'admissionNumber', 'firstName', 'lastName', 'gender', 'dateOfBirth',
+      'email', 'phone', 'parentUserId', 'address', 'bloodGroup', 'emergencyContact'
     ];
 
-    allowedUpdates.forEach((field) => {
+    allowedProfileUpdates.forEach((field) => {
       if (updates[field] !== undefined) {
-        student[field] = updates[field];
+        studentProfile[field] = updates[field];
       }
     });
 
-    await student.save();
-    return student;
+    await studentProfile.save();
+    logger.info('Updated StudentProfile record', { id, schoolId });
+    return studentProfile;
   }
 
   /**
