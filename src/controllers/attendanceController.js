@@ -227,19 +227,47 @@ exports.bulkMarkAttendance = asyncHandler(async (req, res, next) => {
 
   try {
     const insertPerf = log.performance('database-insert');
-    const attendance = await Attendance.insertMany(bulkRecords, { ordered: false });
+    
+    // Use bulkWrite with upsert to handle duplicate records gracefully
+    // This will update if record exists, insert if it doesn't
+    const bulkOps = bulkRecords.map(record => ({
+      updateOne: {
+        filter: {
+          studentId: record.studentId,
+          date: record.date,
+          schoolId: record.schoolId
+        },
+        update: { $set: record },
+        upsert: true
+      }
+    }));
+
+    const result = await Attendance.bulkWrite(bulkOps, { ordered: false });
     insertPerf.end();
     
     logger.business('Bulk attendance marked', {
-      recordsInserted: attendance.length,
+      recordsInserted: result.upsertedCount || 0,
+      recordsUpdated: result.modifiedCount || 0,
       classId,
       sectionId,
       date,
       markedBy: userId
     });
     
-    perf.end({ recordsInserted: attendance.length });
-    res.status(201).json({ success: true, data: attendance });
+    perf.end({ 
+      recordsInserted: result.upsertedCount || 0,
+      recordsUpdated: result.modifiedCount || 0
+    });
+    
+    res.status(201).json({ 
+      success: true, 
+      data: {
+        message: `Attendance marked successfully for ${bulkRecords.length} students`,
+        inserted: result.upsertedCount || 0,
+        updated: result.modifiedCount || 0,
+        total: bulkRecords.length
+      }
+    });
   } catch (error) {
     log.error('Database insertion failed', { 
       error: error.message,

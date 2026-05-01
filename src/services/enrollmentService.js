@@ -122,20 +122,44 @@ class EnrollmentService {
   // Get enrollments by class and section
   async getClassEnrollments(classId, sectionId, academicYearId, schoolId) {
     try {
-      const enrollments = await Enrollment.find({
-        classId,
-        sectionId,
+      // Build query dynamically based on provided parameters
+      const query = {
         academicYearId,
         schoolId,
         status: 'ENROLLED'
-      })
-      .populate('studentId', 'firstName lastName admissionNumber')
-      .sort({ rollNumber: 1 });
+      };
 
-      return apiResponse.success('Class enrollments retrieved', enrollments);
+      // Add classId if provided
+      if (classId) {
+        query.classId = classId;
+      }
+
+      // Add sectionId if provided
+      if (sectionId) {
+        query.sectionId = sectionId;
+      }
+
+      const enrollments = await Enrollment.find(query)
+        .populate('studentId', 'firstName lastName admissionNumber')
+        .populate('classId', 'name')
+        .populate('sectionId', 'name')
+        .sort({ rollNumber: 1 });
+
+      let message = 'Enrollments retrieved';
+      if (classId && sectionId) {
+        message = 'Class/Section enrollments retrieved';
+      } else if (classId) {
+        message = 'Class enrollments retrieved';
+      } else if (sectionId) {
+        message = 'Section enrollments retrieved';
+      } else {
+        message = 'Academic year enrollments retrieved';
+      }
+
+      return apiResponse.success(message, enrollments);
     } catch (error) {
-      logger.error(`Failed to get class enrollments: ${error.message}`, { stack: error.stack });
-      return apiResponse.error('Failed to get class enrollments', error.message);
+      logger.error(`Failed to get enrollments: ${error.message}`, { stack: error.stack });
+      return apiResponse.error('Failed to get enrollments', error.message);
     }
   }
 

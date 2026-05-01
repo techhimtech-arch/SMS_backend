@@ -406,6 +406,7 @@ const getAdmissionDetails = asyncHandler(async (req, res) => {
 const getAdmittedStudents = asyncHandler(async (req, res) => {
   try {
     const StudentProfile = require('../models/StudentProfile');
+    const Enrollment = require('../models/Enrollment');
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
@@ -413,7 +414,7 @@ const getAdmittedStudents = asyncHandler(async (req, res) => {
     const sectionId = req.query.sectionId || '';
     const academicYearId = req.query.academicYearId || '';
 
-    // Build query
+    // Build query for StudentProfile
     const query = { schoolId: req.user.schoolId, isActive: true };
 
     // Add search filter
@@ -423,6 +424,35 @@ const getAdmittedStudents = asyncHandler(async (req, res) => {
         { lastName: { $regex: search, $options: 'i' } },
         { admissionNumber: { $regex: search, $options: 'i' } }
       ];
+    }
+
+    // If classId/sectionId provided, first find enrollments matching those criteria
+    let studentIds = null;
+    if (classId || sectionId) {
+      const enrollmentQuery = { schoolId: req.user.schoolId };
+      if (classId) enrollmentQuery.classId = classId;
+      if (sectionId) enrollmentQuery.sectionId = sectionId;
+      
+      const enrollments = await Enrollment.find(enrollmentQuery)
+        .select('studentId')
+        .lean();
+      
+      studentIds = enrollments.map(e => e.studentId);
+      
+      if (studentIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0
+          }
+        });
+      }
+      
+      query._id = { $in: studentIds };
     }
 
     if (req.user.role === 'teacher') {

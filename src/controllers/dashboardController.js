@@ -11,6 +11,8 @@ const Result = require('../models/Result');
 const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const Announcement = require('../models/Announcement');
+const Enrollment = require('../models/Enrollment');
+const AcademicYear = require('../models/AcademicYear');
 const logger = require('../utils/logger');
 
 /**
@@ -57,6 +59,15 @@ const getDashboardStats = async (req, res) => {
       };
     }
 
+    // Get current academic year
+    const currentAcademicYear = await AcademicYear.findOne({
+      schoolId,
+      isCurrent: true,
+      isActive: true
+    });
+
+    const academicYearId = currentAcademicYear?._id || null;
+
     // Run all queries in parallel for better performance
     const [
       totalStudents,
@@ -69,8 +80,27 @@ const getDashboardStats = async (req, res) => {
       totalExams,
       totalResultsEntered,
     ] = await Promise.all([
-      // Basic Stats - using countDocuments for simple counts
-      Student.countDocuments({ schoolId, isActive: true }),
+      // Count distinct students enrolled in current academic year
+      academicYearId ? 
+        Enrollment.aggregate([
+          {
+            $match: {
+              schoolId,
+              academicYearId,
+              status: 'ENROLLED',
+              isDeleted: { $ne: true }
+            }
+          },
+          {
+            $group: {
+              _id: '$studentId'
+            }
+          },
+          {
+            $count: 'totalStudents'
+          }
+        ]).then(result => result[0]?.totalStudents || 0)
+        : Promise.resolve(0),
       
       User.countDocuments({ schoolId, role: 'teacher', isActive: true }),
       

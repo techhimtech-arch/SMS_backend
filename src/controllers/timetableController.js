@@ -582,35 +582,35 @@ const deleteClassTimetable = asyncHandler(async (req, res) => {
 
 module.exports = {
   createTimetableSlot: [
-    authorizePermissions([PERMISSIONS.EXAM_CREATE]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_CREATE]),
     createTimetableSlot
   ],
   createBulkTimetable: [
-    authorizePermissions([PERMISSIONS.EXAM_CREATE]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_CREATE]),
     createBulkTimetable
   ],
   getClassTimetable: [
-    authorizePermissions([PERMISSIONS.EXAM_READ]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_READ]),
     getClassTimetable
   ],
   getTeacherTimetable: [
-    authorizePermissions([PERMISSIONS.EXAM_READ]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_READ]),
     getTeacherTimetable
   ],
   getWeeklyTimetable: [
-    authorizePermissions([PERMISSIONS.EXAM_READ]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_READ]),
     getWeeklyTimetable
   ],
   updateTimetableSlot: [
-    authorizePermissions([PERMISSIONS.EXAM_UPDATE]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_UPDATE]),
     updateTimetableSlot
   ],
   deleteTimetableSlot: [
-    authorizePermissions([PERMISSIONS.EXAM_DELETE]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_DELETE]),
     deleteTimetableSlot
   ],
   deleteClassTimetable: [
-    authorizePermissions([PERMISSIONS.EXAM_DELETE]),
+    authorizePermissions([PERMISSIONS.TIMETABLE_DELETE]),
     deleteClassTimetable
   ]
 };

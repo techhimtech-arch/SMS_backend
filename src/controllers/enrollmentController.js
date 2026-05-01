@@ -73,17 +73,23 @@ const getClassEnrollments = asyncHandler(async (req, res) => {
   const { classId, sectionId, academicYearId } = req.query;
   const schoolId = req.user.schoolId;
 
-  if (!classId || !sectionId || !academicYearId) {
+  // Only academicYearId is required
+  // classId and sectionId are independently optional
+  if (!academicYearId || academicYearId.trim() === '') {
     return res.status(400).json({
       success: false,
-      message: 'Class ID, Section ID, and Academic Year ID are required',
+      message: 'Academic Year ID is required. Class ID and Section ID are optional.',
     });
   }
 
+  // Normalize empty strings to null
+  const normalizedClassId = classId && classId.trim() ? classId.trim() : null;
+  const normalizedSectionId = sectionId && sectionId.trim() ? sectionId.trim() : null;
+
   const result = await enrollmentService.getClassEnrollments(
-    classId,
-    sectionId,
-    academicYearId,
+    normalizedClassId,
+    normalizedSectionId,
+    academicYearId.trim(),
     schoolId
   );
   res.status(result.statusCode).json(result);

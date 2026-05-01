@@ -46,6 +46,8 @@ const bulkAdmissionRoutes = require('./routes/bulkAdmissionRoutes');
 const examRoutes = require('./routes/examRoutes');
 const markRoutes = require('./routes/markRoutes');
 const feeRoutes = require('./routes/feeRoutes');
+// Timetable routes
+const timetableRoutes = require('./routes/timetableRoutes');
 // Quiz system routes
 const quizRoutes = require('./routes/quizRoutes');
 const studentQuizRoutes = require('./routes/studentQuizRoutes');
@@ -170,6 +172,7 @@ app.use('/api/v1/attendance/enrollments', enrollmentAttendanceRoutes);
 app.use('/api/v1/fees', feesRoutes);
 app.use('/api/v1/exams', examRoutes);
 app.use('/api/v1/marks', markRoutes);
+app.use('/api/v1/timetable', timetableRoutes);
 app.use('/api/v1/results', examsResultsRoutes);
 app.use('/api/v1/parents', parentRoutes);
 app.use('/api/v1/parent', parentPortalRoutes);

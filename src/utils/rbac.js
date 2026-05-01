@@ -55,6 +55,12 @@ const PERMISSIONS = {
   EXAM_DELETE: 'exam:delete',
   EXAM_GRADE: 'exam:grade',
   
+  // Timetable Management
+  TIMETABLE_CREATE: 'timetable:create',
+  TIMETABLE_READ: 'timetable:read',
+  TIMETABLE_UPDATE: 'timetable:update',
+  TIMETABLE_DELETE: 'timetable:delete',
+  
   // Announcement Management
   ANNOUNCEMENT_CREATE: 'announcement:create',
   ANNOUNCEMENT_READ: 'announcement:read',
@@ -128,6 +134,12 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.EXAM_DELETE,
     PERMISSIONS.EXAM_GRADE,
     
+    // Timetable Management
+    PERMISSIONS.TIMETABLE_CREATE,
+    PERMISSIONS.TIMETABLE_READ,
+    PERMISSIONS.TIMETABLE_UPDATE,
+    PERMISSIONS.TIMETABLE_DELETE,
+    
     // Announcement Management
     PERMISSIONS.ANNOUNCEMENT_CREATE,
     PERMISSIONS.ANNOUNCEMENT_READ,
@@ -169,6 +181,9 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.EXAM_READ,
     PERMISSIONS.EXAM_UPDATE,
     PERMISSIONS.EXAM_GRADE,
+    
+    // Timetable Management
+    PERMISSIONS.TIMETABLE_READ,
     
     // Announcement Management
     PERMISSIONS.ANNOUNCEMENT_READ,
@@ -228,6 +243,9 @@ const ROLE_PERMISSIONS = {
     // Exam Management (their children's results)
     PERMISSIONS.EXAM_READ,
     
+    // Timetable Management
+    PERMISSIONS.TIMETABLE_READ,
+    
     // Announcement Management
     PERMISSIONS.ANNOUNCEMENT_READ,
     
@@ -256,6 +274,9 @@ const ROLE_PERMISSIONS = {
     
     // Exam Management (read their results)
     PERMISSIONS.EXAM_READ,
+    
+    // Timetable Management
+    PERMISSIONS.TIMETABLE_READ,
     
     // Announcement Management
     PERMISSIONS.ANNOUNCEMENT_READ
