@@ -42,9 +42,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
 // Bulk admission system routes
 const bulkAdmissionRoutes = require('./routes/bulkAdmissionRoutes');
-// Exam and Marks routes
-const examRoutes = require('./routes/examRoutes');
-const markRoutes = require('./routes/markRoutes');
+// Exam System refactored routes
+const refactoredExamRoutes = require('./routes/refactoredExamRoutes');
 const feeRoutes = require('./routes/feeRoutes');
 // Timetable routes
 const timetableRoutes = require('./routes/timetableRoutes');
@@ -170,10 +169,8 @@ app.use('/api/v1/admission', admissionRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/attendance/enrollments', enrollmentAttendanceRoutes);
 app.use('/api/v1/fees', feesRoutes);
-app.use('/api/v1/exams', examRoutes);
-app.use('/api/v1/marks', markRoutes);
+app.use('/api/v1', refactoredExamRoutes); // Overrides exams, marks, results to our new architecture
 app.use('/api/v1/timetable', timetableRoutes);
-app.use('/api/v1/results', examsResultsRoutes);
 app.use('/api/v1/parents', parentRoutes);
 app.use('/api/v1/parent', parentPortalRoutes);
 app.use('/api/v1/parent-linking', parentLinkingRoutes);
