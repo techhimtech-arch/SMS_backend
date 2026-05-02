@@ -18,6 +18,12 @@ router.post(
 );
 
 router.get(
+  '/exams',
+  authorizePermissions([PERMISSIONS.EXAM_READ]),
+  refactoredExamController.listExams
+);
+
+router.get(
   '/exams/:id/students',
   authorizePermissions([PERMISSIONS.EXAM_READ]),
   refactoredExamController.getExamStudents

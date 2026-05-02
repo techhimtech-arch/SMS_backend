@@ -313,8 +313,38 @@ const generateResults = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * LIST /exams
+ * Query: ?class_id=..., ?exam_type=...
+ */
+const listExams = asyncHandler(async (req, res) => {
+  try {
+    const { class_id, exam_type } = req.query;
+    const schoolId = req.user.schoolId;
+
+    let query = { schoolId };
+
+    if (class_id) query.class_id = class_id;
+    if (exam_type) query.exam_type = exam_type;
+
+    const exams = await RefactoredExam.find(query)
+      .populate([
+        { path: 'class_id', select: 'name' },
+        { path: 'sections', select: 'name' },
+        { path: 'subjects.subject_id', select: 'name code' }
+      ])
+      .sort({ createdAt: -1 });
+
+    return sendSuccess(res, 200, 'Exams retrieved successfully', exams);
+  } catch (error) {
+    logger.error('Failed to list exams', { error: error.message });
+    return sendError(res, 500, error.message);
+  }
+});
+
 module.exports = {
   createExam,
+  listExams,
   getExamStudents,
   bulkMarksEntry,
   generateResults
