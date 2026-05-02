@@ -9,10 +9,10 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-// Create fee structure validation (Legacy support)
+// Create fee structure validation (supports both legacy class fee structures and new fee-head payloads)
 const validateCreateFeeStructure = [
   check('classId')
-    .notEmpty().withMessage('Class ID is required')
+    .optional()
     .isMongoId().withMessage('Invalid Class ID format'),
 
   check('academicYear')
@@ -23,6 +23,37 @@ const validateCreateFeeStructure = [
   check('academicSessionId')
     .optional()
     .isMongoId().withMessage('Invalid academic session ID'),
+
+  check('applicableTo')
+    .optional()
+    .isIn(['all', 'specific']).withMessage('applicableTo must be either "all" or "specific"'),
+
+  check('applicableIds')
+    .optional()
+    .isArray().withMessage('applicableIds must be an array'),
+
+  check('feeHead')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 }).withMessage('feeHead must be between 2 and 100 characters'),
+
+  check('amount')
+    .optional()
+    .isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+
+  check('frequency')
+    .optional()
+    .isIn(['monthly', 'quarterly', 'yearly', 'one_time', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'ONE_TIME'])
+    .withMessage('Invalid fee frequency'),
+
+  check('isMandatory')
+    .optional()
+    .isBoolean().withMessage('isMandatory must be a boolean'),
+
+  check('description')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('Description cannot exceed 500 characters'),
 
   check('tuitionFee')
     .optional()

@@ -62,12 +62,21 @@ class FeeService {
       }
       
       // Get all enrollments for this class and academic year
-      const enrollments = await Enrollment.find({
+      let enrollments = await Enrollment.find({
         classId: feeStructure.classId,
         academicYearId: feeStructure.academicYearId,
         schoolId,
         status: 'enrolled'
       });
+      
+      // Filter enrollments based on applicableTo setting
+      if (feeStructure.applicableTo === 'specific' && feeStructure.applicableIds && feeStructure.applicableIds.length > 0) {
+        // Only create fees for specific students
+        enrollments = enrollments.filter(enrollment => 
+          feeStructure.applicableIds.some(id => id.toString() === enrollment.studentId.toString())
+        );
+      }
+      // If applicableTo is 'all', use all enrollments (no filtering)
       
       const feeCreationPromises = enrollments.map(enrollment => {
         return ImprovedStudentFee.createFromFeeStructure(
@@ -84,6 +93,7 @@ class FeeService {
       
       logger.info('Fees created for existing students', {
         feeStructureId,
+        applicableTo: feeStructure.applicableTo,
         totalEnrollments: enrollments.length,
         successful,
         failed

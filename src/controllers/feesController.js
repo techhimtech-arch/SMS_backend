@@ -7,34 +7,100 @@ const { getCurrentAcademicYearOrThrow } = require('../utils/academicYearHelper')
 
 // POST /api/fees/structure
 exports.createFeeStructure = asyncHandler(async (req, res, next) => {
-  const { classId, academicYear, tuitionFee, transportFee, examFee, otherCharges } = req.body;
-  const { schoolId } = req.user;
-
-  // Default to current academic year if not provided
-  let yearValue = academicYear;
-  if (!yearValue) {
-    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
-    yearValue = currentYear.name;
-  }
-
-  const existingStructure = await FeeStructure.findOne({
+  const {
     classId,
-    academicYear: yearValue,
-    schoolId,
-  });
-
-  if (existingStructure) {
-    return next(new ErrorResponse('Fee structure already exists for this class and academic year', 400));
-  }
-
-  const feeStructure = await FeeStructure.create({
-    classId,
-    schoolId,
-    academicYear: yearValue,
+    academicYear,
+    academicSessionId,
     tuitionFee,
     transportFee,
     examFee,
     otherCharges,
+    feeHead,
+    feeHeads,
+    amount,
+    frequency,
+    isMandatory,
+    description,
+    applicableTo = 'all',
+    applicableIds = []
+  } = req.body;
+  const { schoolId } = req.user;
+
+  // Default to current academic year if not provided
+  let yearValue = academicYear;
+  let sessionIdValue = academicSessionId;
+  if (!sessionIdValue || !yearValue) {
+    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
+    if (!sessionIdValue) {
+      sessionIdValue = currentYear._id;
+    }
+    if (!yearValue) {
+      yearValue = currentYear.name;
+    }
+  }
+
+  const hasLegacyFees =
+    tuitionFee !== undefined ||
+    transportFee !== undefined ||
+    examFee !== undefined ||
+    otherCharges !== undefined;
+
+  const hasNewFeeHead = !!feeHead || (Array.isArray(feeHeads) && feeHeads.length > 0);
+
+  if (!hasLegacyFees && !hasNewFeeHead) {
+    return next(new ErrorResponse('Provide either legacy fee fields or feeHead/feeHeads data', 400));
+  }
+
+  const normalizedFeeHeads = Array.isArray(feeHeads) && feeHeads.length > 0
+    ? feeHeads.map((head) => ({
+        name: head.name,
+        amount: Number(head.amount),
+        frequency: String(head.frequency || 'YEARLY').toUpperCase(),
+        mandatory: head.mandatory !== undefined ? head.mandatory : true,
+        description: head.description,
+      }))
+    : feeHead
+      ? [{
+          name: feeHead,
+          amount: Number(amount || 0),
+          frequency: String(frequency || 'YEARLY').toUpperCase(),
+          mandatory: isMandatory !== undefined ? isMandatory : true,
+          description,
+        }]
+      : [];
+
+  const structureQuery = {
+    academicYear: yearValue,
+    schoolId,
+    applicableTo,
+  };
+
+  if (sessionIdValue) {
+    structureQuery.academicSessionId = sessionIdValue;
+  }
+
+  if (classId) {
+    structureQuery.classId = classId;
+  }
+
+  const existingStructure = await FeeStructure.findOne(structureQuery);
+
+  if (existingStructure) {
+    return next(new ErrorResponse('Fee structure already exists for this academic year and scope', 400));
+  }
+
+  const feeStructure = await FeeStructure.create({
+    classId: classId || null,
+    schoolId,
+    academicYear: yearValue,
+    academicSessionId: sessionIdValue,
+    tuitionFee,
+    transportFee,
+    examFee,
+    otherCharges,
+    feeHeads: normalizedFeeHeads,
+    applicableTo,
+    applicableIds,
   });
 
   res.status(201).json({ success: true, data: feeStructure });

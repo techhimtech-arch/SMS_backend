@@ -580,6 +580,7 @@ const getAttendanceAnalytics = async (req, res) => {
           as: 'student'
         }
       },
+      { $unwind: '$student' },
       {
         $lookup: {
           from: 'classes',
@@ -588,7 +589,6 @@ const getAttendanceAnalytics = async (req, res) => {
           as: 'class'
         }
       },
-      { $unwind: '$student' },
       { $unwind: '$class' },
       {
         $group: {

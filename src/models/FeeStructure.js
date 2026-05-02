@@ -32,10 +32,22 @@ const feeHeadSchema = new mongoose.Schema({
 
 const feeStructureSchema = new mongoose.Schema(
   {
+    applicableTo: {
+      type: String,
+      enum: ['all', 'specific'],
+      default: 'all'
+    },
+    applicableIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Student'
+    }],
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Class',
-      required: true,
+      required: function() {
+        return this.applicableTo !== 'all';
+      },
+      default: null,
     },
     schoolId: {
       type: mongoose.Schema.Types.ObjectId,
