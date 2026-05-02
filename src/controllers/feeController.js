@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 const FeeStructure = require('../models/FeeStructure');
 const StudentFee = require('../models/StudentFee');
 const FeePayment = require('../models/FeePayment');
@@ -38,11 +39,38 @@ const validateFeeStructure = [
     .withMessage('Amount must be at least 0'),
   
   body('dueDate')
+    .notEmpty()
+    .withMessage('Due date is required')
     .isISO8601()
-    .withMessage('Due date must be a valid date')
-    .custom(value => {
-      if (new Date(value) <= new Date()) {
-        throw new Error('Due date must be in the future');
+    .withMessage('Due date must be a valid date (YYYY-MM-DD format)'),
+  
+  body('applicableTo')
+    .optional()
+    .isIn(['all', 'specific'])
+    .withMessage('applicableTo must be either "all" or "specific"'),
+  
+  body('applicableIds')
+    .optional()
+    .isArray()
+    .withMessage('applicableIds must be an array')
+    .custom((value, { req }) => {
+      // Validate each ID is a valid MongoDB ID
+      if (value && Array.isArray(value)) {
+        for (const id of value) {
+          if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error(`Invalid student ID: ${id}`);
+          }
+        }
+      }
+      
+      // If applicableTo is "specific", applicableIds must not be empty
+      if (req.body.applicableTo === 'specific' && (!value || value.length === 0)) {
+        throw new Error('applicableIds is required when applicableTo is "specific"');
+      }
+      
+      // If applicableTo is "all", applicableIds should be empty
+      if (req.body.applicableTo === 'all' || !req.body.applicableTo) {
+        req.body.applicableIds = [];
       }
       return true;
     })

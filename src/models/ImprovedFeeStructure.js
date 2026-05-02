@@ -63,6 +63,17 @@ const improvedFeeStructureSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    applicableTo: {
+      type: String,
+      enum: ['all', 'specific'],
+      default: 'all',
+      description: 'all = apply to all students in class, specific = apply to specific students'
+    },
+    applicableIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Student',
+      description: 'Student IDs if applicableTo is "specific"'
+    }],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
