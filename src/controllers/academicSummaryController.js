@@ -37,14 +37,12 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       // Total classes
       Class.countDocuments({
         schoolId,
-        academicSessionId,
         isDeleted: { $ne: true }
       }),
 
       // Total sections
       Section.countDocuments({
         schoolId,
-        academicSessionId,
         isDeleted: { $ne: true }
       }),
 
@@ -58,7 +56,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       // Total enrollments
       Enrollment.countDocuments({
         schoolId,
-        academicSessionId,
+        academicYearId: academicSessionId,
         status: 'ENROLLED',
         isDeleted: { $ne: true }
       }),
@@ -80,7 +78,6 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       {
         $match: {
           schoolId,
-          academicSessionId,
           isDeleted: { $ne: true }
         }
       },
@@ -110,7 +107,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] }
                   ]
@@ -124,7 +121,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] }
                   ]
@@ -171,7 +168,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       {
         $match: {
           schoolId,
-          academicSessionId,
+          academicYearId: new mongoose.Types.ObjectId(academicSessionId),
           status: 'ENROLLED',
           isDeleted: { $ne: true }
         }
@@ -297,7 +294,7 @@ const getClassStats = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] }
                   ]
@@ -311,7 +308,7 @@ const getClassStats = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] },
                     { $eq: ['$$this.studentId.gender', 'Male'] }
@@ -326,7 +323,7 @@ const getClassStats = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicSessionId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] },
                     { $eq: ['$$this.studentId.gender', 'Female'] }

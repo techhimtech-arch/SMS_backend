@@ -574,17 +574,8 @@ const getAttendanceAnalytics = async (req, res) => {
       },
       {
         $lookup: {
-          from: 'students',
-          localField: 'studentId',
-          foreignField: '_id',
-          as: 'student'
-        }
-      },
-      { $unwind: '$student' },
-      {
-        $lookup: {
           from: 'classes',
-          localField: 'student.classId',
+          localField: 'classId',
           foreignField: '_id',
           as: 'class'
         }
