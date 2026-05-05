@@ -8,8 +8,13 @@ const Enrollment = require('../models/Enrollment');
 // @route   POST /api/class-teacher/assign
 // @access  Private (school_admin only)
 exports.assignClassTeacher = asyncHandler(async (req, res, next) => {
-  const { teacherId, classId, sectionId, academicYear } = req.body;
+  const { teacherId, classId, sectionId } = req.body;
+  const academicYearId = req.body.academicYearId || req.body.academicSessionId || req.body.academicYear;
   const { schoolId } = req.user;
+
+  if (!academicYearId) {
+    return next(new ErrorResponse('Academic year ID is required', 400));
+  }
 
   // Verify teacher exists and belongs to same school
   const teacher = await User.findOne({
@@ -50,7 +55,7 @@ exports.assignClassTeacher = asyncHandler(async (req, res, next) => {
     classId,
     sectionId,
     schoolId,
-    academicYear
+    academicYearId
   });
 
   res.status(201).json({
@@ -65,10 +70,11 @@ exports.assignClassTeacher = asyncHandler(async (req, res, next) => {
 // @access  Private (school_admin)
 exports.getClassTeacherAssignments = asyncHandler(async (req, res, next) => {
   const { schoolId } = req.user;
-  const { academicYearId, classId } = req.query;
+  const academicYearId = req.query.academicYearId || req.query.academicSessionId || req.query.academicYear;
+  const { classId } = req.query;
 
   const filter = { schoolId, isActive: true };
-  if (academicYear) filter.academicYear = academicYear;
+  if (academicYearId) filter.academicYearId = academicYearId;
   if (classId) filter.classId = classId;
 
   const assignments = await ClassTeacherAssignment.find(filter)
