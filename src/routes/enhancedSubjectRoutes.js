@@ -37,7 +37,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *               - name
  *               - code
  *               - classId
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               name:
  *                 type: string
@@ -63,7 +63,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *                 enum: [SCIENCE, COMMERCE, ARTS, LANGUAGE, MATHEMATICS, PHYSICAL_EDUCATION, COMPUTER_SCIENCE, OTHER]
  *                 description: Academic department
  *                 example: "MATHEMATICS"
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *                 example: "65aa221b8f9e8a001c9e4a1c"
@@ -162,7 +162,7 @@ router.post('/', authMiddleware, createSubject);
  *           type: string
  *         description: Class ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         schema:
  *           type: string
  *         description: Academic session ID
@@ -275,7 +275,7 @@ router.get('/class/:classId', authMiddleware, getSubjectsByClass);
  *           type: string
  *         description: Teacher ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         schema:
  *           type: string
  *         description: Academic session ID
@@ -525,7 +525,7 @@ router.delete('/:subjectId/remove-teacher/:teacherId', authMiddleware, removeTea
  *           type: string
  *         description: Class ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         schema:
  *           type: string
  *         description: Academic session ID

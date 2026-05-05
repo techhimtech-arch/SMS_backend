@@ -32,7 +32,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *             type: object
  *             required:
  *               - enrollments
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               enrollments:
  *                 type: array
@@ -54,7 +54,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *               prefix:
  *                 type: string
  *                 description: Prefix for roll numbers
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *     responses:
@@ -117,7 +117,7 @@ router.post('/bulk-assign', authMiddleware, bulkAssignRollNumbers);
  *             required:
  *               - classId
  *               - sectionId
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               classId:
  *                 type: string
@@ -125,7 +125,7 @@ router.post('/bulk-assign', authMiddleware, bulkAssignRollNumbers);
  *               sectionId:
  *                 type: string
  *                 description: Section ID
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *               startFrom:
@@ -178,7 +178,7 @@ router.post('/reassign', authMiddleware, reassignRollNumbers);
  *           type: string
  *         description: Section ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -247,9 +247,9 @@ router.get('/class/:classId/section/:sectionId', authMiddleware, getRollNumberAs
  *           schema:
  *             type: object
  *             required:
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *               prefix:
@@ -263,7 +263,7 @@ router.get('/class/:classId/section/:sectionId', authMiddleware, getRollNumberAs
  *             schema:
  *               type: object
  *               properties:
- *                 academicSessionId:
+ *                 academicYearId:
  *                   type: string
  *                   description: Academic session ID
  *                 summary:
@@ -310,7 +310,7 @@ router.post('/auto-assign-session', authMiddleware, autoAssignSessionRollNumbers
  *               - rollNumber
  *               - classId
  *               - sectionId
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               rollNumber:
  *                 type: string
@@ -321,7 +321,7 @@ router.post('/auto-assign-session', authMiddleware, autoAssignSessionRollNumbers
  *               sectionId:
  *                 type: string
  *                 description: Section ID
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *               excludeId:
@@ -344,7 +344,7 @@ router.post('/auto-assign-session', authMiddleware, autoAssignSessionRollNumbers
  *                 sectionId:
  *                   type: string
  *                   description: Section ID
- *                 academicSessionId:
+ *                 academicYearId:
  *                   type: string
  *                   description: Academic session ID
  *                 isAvailable:

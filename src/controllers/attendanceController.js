@@ -299,7 +299,7 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
   // Parent data isolation - only see their own children's attendance
   if (role === 'parent') {
     // Get parent's children
-    const Student = require('../models/Student');
+    const Student = require('../models/StudentProfile');
     const children = await Student.find({
       parentUserId: userId,
       schoolId,

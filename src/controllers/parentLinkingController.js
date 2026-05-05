@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ParentStudentMapping = require('../models/ParentStudentMapping');
 const User = require('../models/User');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 
 /**
  * Link a parent to a student (creates/updates ParentStudentMapping)

@@ -2,7 +2,7 @@ const reportService = require('../services/reportService');
 const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 const { logAudit } = require('../middlewares/auditMiddleware');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 
 /**
  * @desc    Generate report card PDF for a student

@@ -68,7 +68,7 @@ const academicCalendarSchema = new mongoose.Schema(
       type: String,
       enum: ['ALL', 'STUDENTS', 'TEACHERS', 'PARENTS', 'ADMIN', 'SCHOOL_ADMIN', 'TEACHER', 'ACCOUNTANT']
     }],
-    academicSessionId: {
+    academicYearId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AcademicYear',
       required: true,
@@ -171,20 +171,20 @@ const academicCalendarSchema = new mongoose.Schema(
 // Indexes for performance
 academicCalendarSchema.index({ 
   schoolId: 1, 
-  academicSessionId: 1, 
+  academicYearId: 1, 
   date: 1 
 });
 
 academicCalendarSchema.index({ 
   schoolId: 1, 
-  academicSessionId: 1, 
+  academicYearId: 1, 
   type: 1, 
   status: 1 
 });
 
 academicCalendarSchema.index({ 
   schoolId: 1, 
-  academicSessionId: 1, 
+  academicYearId: 1, 
   date: 1, 
   isActive: 1 
 });
@@ -210,10 +210,10 @@ academicCalendarSchema.index({
 addSoftDeleteFilter(academicCalendarSchema);
 
 // Static methods for common queries
-academicCalendarSchema.statics.findByDateRange = function(startDate, endDate, academicSessionId, schoolId, options = {}) {
+academicCalendarSchema.statics.findByDateRange = function(startDate, endDate, academicYearId, schoolId, options = {}) {
   const query = {
     date: { $gte: startDate, $lte: endDate },
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -240,29 +240,29 @@ academicCalendarSchema.statics.findByDateRange = function(startDate, endDate, ac
     .sort({ date: 1, priority: -1 });
 };
 
-academicCalendarSchema.statics.findByMonth = function(year, month, academicSessionId, schoolId, options = {}) {
+academicCalendarSchema.statics.findByMonth = function(year, month, academicYearId, schoolId, options = {}) {
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0); // Last day of month
 
-  return this.findByDateRange(startDate, endDate, academicSessionId, schoolId, options);
+  return this.findByDateRange(startDate, endDate, academicYearId, schoolId, options);
 };
 
-academicCalendarSchema.statics.getUpcomingEvents = function(days = 30, academicSessionId, schoolId, options = {}) {
+academicCalendarSchema.statics.getUpcomingEvents = function(days = 30, academicYearId, schoolId, options = {}) {
   const startDate = new Date();
   const endDate = new Date();
   endDate.setDate(startDate.getDate() + days);
 
-  return this.findByDateRange(startDate, endDate, academicSessionId, schoolId, options);
+  return this.findByDateRange(startDate, endDate, academicYearId, schoolId, options);
 };
 
-academicCalendarSchema.statics.getHolidays = function(academicSessionId, schoolId, year) {
+academicCalendarSchema.statics.getHolidays = function(academicYearId, schoolId, year) {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31);
 
   return this.find({
     date: { $gte: yearStart, $lte: yearEnd },
     type: 'HOLIDAY',
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -274,14 +274,14 @@ academicCalendarSchema.statics.getHolidays = function(academicSessionId, schoolI
   .sort({ date: 1 });
 };
 
-academicCalendarSchema.statics.getExams = function(academicSessionId, schoolId, year) {
+academicCalendarSchema.statics.getExams = function(academicYearId, schoolId, year) {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31);
 
   return this.find({
     date: { $gte: yearStart, $lte: yearEnd },
     type: 'EXAM',
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const ImprovedResult = require('../models/ImprovedResult');
+const ImprovedResult = require('../models/Result');
 const Enrollment = require('../models/Enrollment');
 const Exam = require('../models/Exam');
 const Subject = require('../models/Subject');

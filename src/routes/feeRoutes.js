@@ -503,7 +503,7 @@ const {
  *               - studentId
  *               - classId
  *               - sectionId
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               studentId:
  *                 type: string
@@ -511,7 +511,7 @@ const {
  *                 type: string
  *               sectionId:
  *                 type: string
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *               customFeeItems:
  *                 type: array
@@ -536,7 +536,7 @@ router.post('/generate-student-fees', authMiddleware, authorizeRoles('school_adm
  *         schema:
  *           type: string
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         schema:
  *           type: string
  *     responses:
@@ -559,7 +559,7 @@ router.get('/student/:studentId/fees', authMiddleware, authorizeRoles('school_ad
  *         schema:
  *           type: string
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         schema:
  *           type: string
  *       - in: query
@@ -598,7 +598,7 @@ router.get('/payments', authMiddleware, authorizeRoles('school_admin', 'accounta
  *         schema:
  *           type: string
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         schema:
  *           type: string
  *       - in: query

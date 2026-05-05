@@ -6,7 +6,7 @@ const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
 // Create a new subject
 const createSubject = async (req, res) => {
   try {
-    const { name, classId, code, academicSessionId, description, department, credits, weeklyHours, isOptional } = req.body;
+    const { name, classId, code, academicYearId, description, department, credits, weeklyHours, isOptional } = req.body;
     const schoolId = req.user.schoolId;
 
     // Check if class exists and belongs to the school
@@ -26,7 +26,7 @@ const createSubject = async (req, res) => {
       classId, 
       schoolId,
       code,
-      academicSessionId,
+      academicYearId,
       description,
       department,
       credits,

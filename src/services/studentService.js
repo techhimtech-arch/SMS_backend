@@ -1,4 +1,4 @@
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 const Class = require('../models/Class');
 const Section = require('../models/Section');
 const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 const emailService = require('./emailService');
 const StudentProfile = require('../models/StudentProfile');
 const Attendance = require('../models/Attendance');
-const ExamResult = require('../models/ExamResult');
+const ExamResult = require('../models/Result');
 const Fee = require('../models/Fee');
 const StudyMaterial = require('../models/StudyMaterial');
 const Assignment = require('../models/Assignment');

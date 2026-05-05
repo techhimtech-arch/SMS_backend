@@ -10,7 +10,7 @@ exports.createFeeStructure = asyncHandler(async (req, res, next) => {
   const {
     classId,
     academicYear,
-    academicSessionId,
+    academicYearId,
     tuitionFee,
     transportFee,
     examFee,
@@ -28,7 +28,7 @@ exports.createFeeStructure = asyncHandler(async (req, res, next) => {
 
   // Default to current academic year if not provided
   let yearValue = academicYear;
-  let sessionIdValue = academicSessionId;
+  let sessionIdValue = academicYearId;
   if (!sessionIdValue || !yearValue) {
     const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
     if (!sessionIdValue) {
@@ -76,7 +76,7 @@ exports.createFeeStructure = asyncHandler(async (req, res, next) => {
   };
 
   if (sessionIdValue) {
-    structureQuery.academicSessionId = sessionIdValue;
+    structureQuery.academicYearId = sessionIdValue;
   }
 
   if (classId) {
@@ -93,7 +93,7 @@ exports.createFeeStructure = asyncHandler(async (req, res, next) => {
     classId: classId || null,
     schoolId,
     academicYear: yearValue,
-    academicSessionId: sessionIdValue,
+    academicYearId: sessionIdValue,
     tuitionFee,
     transportFee,
     examFee,

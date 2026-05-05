@@ -42,7 +42,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *               - teacherId
  *               - startTime
  *               - endTime
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               classId:
  *                 type: string
@@ -77,7 +77,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *                 type: string
  *                 maxLength: 50
  *                 description: Room number (optional)
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *               semester:
@@ -115,14 +115,14 @@ router.post('/', authMiddleware, createTimetableSlot);
  *             type: object
  *             required:
  *               - timetableSlots
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               timetableSlots:
  *                 type: array
  *                 items:
  *                   type: object
  *                 description: Array of timetable slot objects
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID for all slots
  *     responses:
@@ -161,7 +161,7 @@ router.post('/bulk', authMiddleware, createBulkTimetable);
  *           type: string
  *         description: Section ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -210,7 +210,7 @@ router.get('/class/:classId/section/:sectionId', authMiddleware, getClassTimetab
  *           type: string
  *         description: Teacher ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -265,7 +265,7 @@ router.get('/teacher/:teacherId', authMiddleware, getTeacherTimetable);
  *           type: string
  *         description: Section ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string

@@ -22,9 +22,10 @@ const classTeacherAssignmentSchema = new mongoose.Schema(
       ref: 'School',
       required: [true, 'School ID is required']
     },
-    academicYear: {
-      type: String,
-      required: [true, 'Academic year is required']
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
+      required: [true, 'Academic year ID is required']
     },
     isActive: {
       type: Boolean,
@@ -36,7 +37,7 @@ const classTeacherAssignmentSchema = new mongoose.Schema(
 
 // Each class+section can have only ONE class teacher per academic year
 classTeacherAssignmentSchema.index(
-  { classId: 1, sectionId: 1, schoolId: 1, academicYear: 1 },
+  { classId: 1, sectionId: 1, schoolId: 1, academicYearId: 1 },
   { unique: true }
 );
 

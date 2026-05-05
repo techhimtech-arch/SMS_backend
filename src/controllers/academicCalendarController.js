@@ -31,7 +31,7 @@ const createCalendarEvent = asyncHandler(async (req, res) => {
       startTime,
       endTime,
       sendNotifications = true,
-      academicSessionId
+      academicYearId
     } = req.body;
 
     // Validate date is not in the past for published events
@@ -67,7 +67,7 @@ const createCalendarEvent = asyncHandler(async (req, res) => {
       startTime,
       endTime,
       sendNotifications,
-      academicSessionId,
+      academicYearId,
       schoolId: req.user.schoolId,
       createdBy: req.user.userId
     });
@@ -103,7 +103,7 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
     const {
       startDate,
       endDate,
-      academicSessionId,
+      academicYearId,
       type,
       status,
       applicableRoles,
@@ -111,7 +111,7 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
       limit = 50
     } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -136,7 +136,7 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
     const { data, pagination } = await getPaginatedResults(
       AcademicCalendar,
       {},
-      { ...req.query, startDate, endDate, academicSessionId },
+      { ...req.query, startDate, endDate, academicYearId },
       {
         sort: { date: 1, priority: -1 },
         populate: [
@@ -188,9 +188,9 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
 const getMonthlyCalendar = asyncHandler(async (req, res) => {
   try {
     const { year, month } = req.params;
-    const { academicSessionId, type, applicableRoles } = req.query;
+    const { academicYearId, type, applicableRoles } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -220,7 +220,7 @@ const getMonthlyCalendar = asyncHandler(async (req, res) => {
     const events = await AcademicCalendar.findByMonth(
       yearNum,
       monthNum,
-      academicSessionId,
+      academicYearId,
       req.user.schoolId,
       options
     );
@@ -246,9 +246,9 @@ const getMonthlyCalendar = asyncHandler(async (req, res) => {
  */
 const getUpcomingEvents = asyncHandler(async (req, res) => {
   try {
-    const { days = 30, academicSessionId, type, applicableRoles } = req.query;
+    const { days = 30, academicYearId, type, applicableRoles } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -265,7 +265,7 @@ const getUpcomingEvents = asyncHandler(async (req, res) => {
     // Get upcoming events
     const events = await AcademicCalendar.getUpcomingEvents(
       parseInt(days),
-      academicSessionId,
+      academicYearId,
       req.user.schoolId,
       options
     );
@@ -290,9 +290,9 @@ const getUpcomingEvents = asyncHandler(async (req, res) => {
 const getHolidays = asyncHandler(async (req, res) => {
   try {
     const { year } = req.params;
-    const { academicSessionId } = req.query;
+    const { academicYearId } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -303,7 +303,7 @@ const getHolidays = asyncHandler(async (req, res) => {
 
     // Get holidays
     const holidays = await AcademicCalendar.getHolidays(
-      academicSessionId,
+      academicYearId,
       req.user.schoolId,
       yearNum
     );
@@ -329,9 +329,9 @@ const getHolidays = asyncHandler(async (req, res) => {
 const getExams = asyncHandler(async (req, res) => {
   try {
     const { year } = req.params;
-    const { academicSessionId, subType } = req.query;
+    const { academicYearId, subType } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -348,7 +348,7 @@ const getExams = asyncHandler(async (req, res) => {
 
     // Get exams
     const exams = await AcademicCalendar.getExams(
-      academicSessionId,
+      academicYearId,
       req.user.schoolId,
       yearNum
     );

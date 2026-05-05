@@ -105,7 +105,7 @@ const auditLogSchema = new mongoose.Schema(
       type: String,
       enum: [
         'User',
-        'Student',
+        'StudentProfile',
         'Class',
         'Section',
         'Attendance',

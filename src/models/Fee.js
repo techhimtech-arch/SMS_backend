@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const FeeSchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
+    ref: 'StudentProfile',
     required: true
   },
   academicYearId: {

@@ -17,9 +17,9 @@ const { PERMISSIONS } = require('../utils/rbac');
  */
 const getAcademicSummary = asyncHandler(async (req, res) => {
   try {
-    const { academicSessionId } = req.query;
+    const academicYearId = req.query.academicYearId || req.query.academicSessionId;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -49,14 +49,14 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       // Total subjects
       Subject.countDocuments({
         schoolId,
-        academicSessionId,
+        academicYearId,
         isDeleted: { $ne: true }
       }),
 
       // Total enrollments
       Enrollment.countDocuments({
         schoolId,
-        academicYearId: academicSessionId,
+        academicYearId: academicYearId,
         status: 'ENROLLED',
         isDeleted: { $ne: true }
       }),
@@ -70,7 +70,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       }),
 
       // Enrollment statistics
-      Enrollment.getEnrollmentStats(academicSessionId, schoolId)
+      Enrollment.getEnrollmentStats(academicYearId, schoolId)
     ]);
 
     // Get class-wise distribution
@@ -107,7 +107,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicYearId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] }
                   ]
@@ -121,7 +121,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicYearId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] }
                   ]
@@ -141,7 +141,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       {
         $match: {
           schoolId,
-          academicSessionId,
+          academicYearId,
           isDeleted: { $ne: true }
         }
       },
@@ -168,7 +168,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       {
         $match: {
           schoolId,
-          academicYearId: new mongoose.Types.ObjectId(academicSessionId),
+          academicYearId: new mongoose.Types.ObjectId(academicYearId),
           status: 'ENROLLED',
           isDeleted: { $ne: true }
         }
@@ -211,13 +211,13 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
       subjectDistribution,
       topTeachers: teacherWorkload,
       sessionInfo: {
-        academicSessionId,
+        academicYearId,
         generatedAt: new Date()
       }
     };
 
     logger.info('Academic summary retrieved successfully', {
-      academicSessionId,
+      academicYearId,
       schoolId,
       userId: req.user.userId
     });
@@ -227,7 +227,7 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
   } catch (error) {
     logger.error('Failed to get academic summary', {
       error: error.message,
-      academicSessionId: req.query.academicSessionId,
+      academicYearId: req.query.academicYearId,
       userId: req.user.userId,
       schoolId: req.user.schoolId
     });
@@ -244,9 +244,9 @@ const getAcademicSummary = asyncHandler(async (req, res) => {
 const getClassStats = asyncHandler(async (req, res) => {
   try {
     const { classId } = req.params;
-    const { academicSessionId } = req.query;
+    const academicYearId = req.query.academicYearId || req.query.academicSessionId;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -294,7 +294,7 @@ const getClassStats = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicYearId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] }
                   ]
@@ -308,7 +308,7 @@ const getClassStats = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicYearId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] },
                     { $eq: ['$$this.studentId.gender', 'Male'] }
@@ -323,7 +323,7 @@ const getClassStats = asyncHandler(async (req, res) => {
                 input: '$enrollments',
                 cond: { 
                   $and: [
-                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicSessionId)] },
+                    { $eq: ['$$this.academicYearId', new mongoose.Types.ObjectId(academicYearId)] },
                     { $eq: ['$$this.status', 'ENROLLED'] },
                     { $ne: ['$$this.isDeleted', true] },
                     { $eq: ['$$this.studentId.gender', 'Female'] }
@@ -348,7 +348,7 @@ const getClassStats = asyncHandler(async (req, res) => {
     logger.error('Failed to get class statistics', {
       error: error.message,
       classId: req.params.classId,
-      academicSessionId: req.query.academicSessionId,
+      academicYearId: req.query.academicYearId,
       userId: req.user.userId
     });
 
@@ -363,9 +363,10 @@ const getClassStats = asyncHandler(async (req, res) => {
  */
 const getEnrollmentTrends = asyncHandler(async (req, res) => {
   try {
-    const { academicSessionId, years = 3 } = req.query;
+    const academicYearId = req.query.academicYearId || req.query.academicSessionId;
+    const years = req.query.years || 3;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 

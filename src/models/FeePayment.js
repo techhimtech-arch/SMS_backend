@@ -5,7 +5,7 @@ const feePaymentSchema = new mongoose.Schema(
   {
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Student',
+      ref: 'StudentProfile',
       required: [true, 'Student ID is required'],
       index: true
     },
@@ -24,7 +24,7 @@ const feePaymentSchema = new mongoose.Schema(
       ref: 'School',
       required: true,
     },
-    academicSessionId: {
+    academicYearId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AcademicYear',
       required: true
@@ -131,7 +131,7 @@ const feePaymentSchema = new mongoose.Schema(
 );
 
 // Indexes
-feePaymentSchema.index({ studentId: 1, academicSessionId: 1 });
+feePaymentSchema.index({ studentId: 1, academicYearId: 1 });
 feePaymentSchema.index({ studentFeeId: 1 });
 feePaymentSchema.index({ feeItemId: 1 });
 feePaymentSchema.index({ receiptNumber: 1 }, { unique: true, sparse: true });
@@ -190,12 +190,12 @@ feePaymentSchema.statics.generateReceiptNumber = async function() {
 };
 
 // Static method to get payment summary for student
-feePaymentSchema.statics.getPaymentSummary = async function(studentId, academicSessionId) {
+feePaymentSchema.statics.getPaymentSummary = async function(studentId, academicYearId) {
   const result = await this.aggregate([
     {
       $match: {
         studentId: new mongoose.Types.ObjectId(studentId),
-        academicSessionId: new mongoose.Types.ObjectId(academicSessionId),
+        academicYearId: new mongoose.Types.ObjectId(academicYearId),
         status: { $in: ['SUCCESS', 'PARTIALLY_REFUNDED'] },
         isDeleted: { $ne: true }
       }

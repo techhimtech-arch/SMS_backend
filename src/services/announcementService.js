@@ -2,7 +2,7 @@ const Announcement = require('../models/Announcement');
 const User = require('../models/User');
 const Class = require('../models/Class');
 const Section = require('../models/Section');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 const emailService = require('./emailService');
 const logger = require('../utils/logger');
 

@@ -4,7 +4,7 @@ const { addSoftDeleteFilter } = require('../utils/softDelete');
 const certificateSchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
+    ref: 'StudentProfile',
     required: [true, 'Student ID is required'],
     index: true
   },
@@ -78,7 +78,7 @@ const certificateSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  academicSessionId: {
+  academicYearId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AcademicYear'
   },

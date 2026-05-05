@@ -662,7 +662,7 @@ const checkTeacherPermission = async ({
     return true;
   }
 
-  // Fallback to TeacherSubjectAssignment (academic year scoped there as academicSessionId)
+  // Fallback to TeacherSubjectAssignment (academic year scoped there as academicYearId)
   const TeacherSubjectAssignment = require('../models/TeacherSubjectAssignment');
   const subjectAssignment = await TeacherSubjectAssignment.findOne({
     teacherId,
@@ -670,7 +670,7 @@ const checkTeacherPermission = async ({
     classId,
     sectionId,
     schoolId,
-    academicSessionId: academicYearId,
+    academicYearId: academicYearId,
     isActive: true,
     isDeleted: { $ne: true }
   });

@@ -21,7 +21,7 @@ const createSubject = asyncHandler(async (req, res) => {
       description,
       classId,
       department,
-      academicSessionId,
+      academicYearId,
       teacherIds = [],
       isOptional = false,
       status = 'ACTIVE',
@@ -45,7 +45,7 @@ const createSubject = asyncHandler(async (req, res) => {
     const existingSubject = await Subject.findOne({
       code: code.toUpperCase(),
       classId,
-      academicSessionId,
+      academicYearId,
       schoolId: req.user.schoolId,
       isDeleted: { $ne: true }
     });
@@ -61,7 +61,7 @@ const createSubject = asyncHandler(async (req, res) => {
       description: description?.trim(),
       classId,
       department,
-      academicSessionId,
+      academicYearId,
       teacherIds,
       isOptional,
       status,
@@ -79,7 +79,7 @@ const createSubject = asyncHandler(async (req, res) => {
         subjectId: subject._id,
         classId,
         sectionId: null, // Will be assigned later
-        academicSessionId,
+        academicYearId,
         schoolId: req.user.schoolId,
         createdBy: req.user.userId
       }));
@@ -115,7 +115,7 @@ const createSubject = asyncHandler(async (req, res) => {
 const getSubjectsByClass = asyncHandler(async (req, res) => {
   try {
     const { classId } = req.params;
-    const { academicSessionId, search, status, department } = req.query;
+    const { academicYearId, search, status, department } = req.query;
 
     // Build filter
     let filter = {
@@ -124,8 +124,8 @@ const getSubjectsByClass = asyncHandler(async (req, res) => {
       isDeleted: { $ne: true }
     };
 
-    if (academicSessionId) {
-      filter.academicSessionId = academicSessionId;
+    if (academicYearId) {
+      filter.academicYearId = academicYearId;
     }
 
     if (status) {
@@ -176,7 +176,7 @@ const getSubjectsByClass = asyncHandler(async (req, res) => {
 const getSubjectsByTeacher = asyncHandler(async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { academicSessionId, search } = req.query;
+    const { academicYearId, search } = req.query;
 
     // Check authorization (teacher can only view own subjects)
     if (req.user.role === 'teacher' && teacherId !== req.user.userId) {
@@ -190,8 +190,8 @@ const getSubjectsByTeacher = asyncHandler(async (req, res) => {
       isDeleted: { $ne: true }
     };
 
-    if (academicSessionId) {
-      filter.academicSessionId = academicSessionId;
+    if (academicYearId) {
+      filter.academicYearId = academicYearId;
     }
 
     // Add search filter
@@ -250,7 +250,7 @@ const updateSubject = asyncHandler(async (req, res) => {
       const existingSubject = await Subject.findOne({
         code: updateData.code.toUpperCase(),
         classId: subject.classId,
-        academicSessionId: subject.academicSessionId,
+        academicYearId: subject.academicYearId,
         schoolId: req.user.schoolId,
         _id: { $ne: id },
         isDeleted: { $ne: true }
@@ -299,7 +299,7 @@ const updateSubject = asyncHandler(async (req, res) => {
           subjectId: id,
           classId: subject.classId,
           sectionId: null,
-          academicSessionId: subject.academicSessionId,
+          academicYearId: subject.academicYearId,
           schoolId: req.user.schoolId,
           createdBy: req.user.userId
         }));
@@ -406,7 +406,7 @@ const assignTeacherToSubject = asyncHandler(async (req, res) => {
       subjectId,
       classId: subject.classId,
       sectionId: sectionId || null,
-      academicSessionId: subject.academicSessionId,
+      academicYearId: subject.academicYearId,
       schoolId: req.user.schoolId,
       isActive: true,
       isDeleted: { $ne: true }
@@ -422,7 +422,7 @@ const assignTeacherToSubject = asyncHandler(async (req, res) => {
       subjectId,
       classId: subject.classId,
       sectionId,
-      academicSessionId: subject.academicSessionId,
+      academicYearId: subject.academicYearId,
       role,
       schoolId: req.user.schoolId,
       createdBy: req.user.userId
@@ -522,11 +522,11 @@ const removeTeacherFromSubject = asyncHandler(async (req, res) => {
 const getOptionalSubjects = asyncHandler(async (req, res) => {
   try {
     const { classId } = req.params;
-    const { academicSessionId } = req.query;
+    const { academicYearId } = req.query;
 
     const subjects = await Subject.findOptionalSubjects(
       classId,
-      academicSessionId,
+      academicYearId,
       req.user.schoolId
     );
 

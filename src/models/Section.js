@@ -14,7 +14,7 @@ const sectionSchema = new mongoose.Schema(
       ref: 'Class', 
       required: true 
     },
-    academicSessionId: {
+    academicYearId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AcademicYear',
       required: true,
@@ -86,45 +86,45 @@ const sectionSchema = new mongoose.Schema(
 sectionSchema.index({ 
   name: 1, 
   classId: 1, 
-  academicSessionId: 1, 
+  academicYearId: 1, 
   schoolId: 1 
 }, { unique: true });
 
 // Performance indexes
 sectionSchema.index({ schoolId: 1, isActive: 1 });
 sectionSchema.index({ schoolId: 1, isDeleted: 1 });
-sectionSchema.index({ classId: 1, academicSessionId: 1, isActive: 1 });
-sectionSchema.index({ classTeacherId: 1, academicSessionId: 1, isActive: 1 });
+sectionSchema.index({ classId: 1, academicYearId: 1, isActive: 1 });
+sectionSchema.index({ classTeacherId: 1, academicYearId: 1, isActive: 1 });
 sectionSchema.index({ createdBy: 1 });
 
 // Apply soft delete filter
 addSoftDeleteFilter(sectionSchema);
 
 // Static methods for common queries
-sectionSchema.statics.findByClass = function(classId, academicSessionId, schoolId) {
+sectionSchema.statics.findByClass = function(classId, academicYearId, schoolId) {
   return this.find({
     classId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
   }).populate('classTeacherId', 'name email');
 };
 
-sectionSchema.statics.findByTeacher = function(teacherId, academicSessionId, schoolId) {
+sectionSchema.statics.findByTeacher = function(teacherId, academicYearId, schoolId) {
   return this.find({
     classTeacherId: teacherId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
   }).populate('classId', 'name');
 };
 
-sectionSchema.statics.getClassSections = function(classId, academicSessionId, schoolId) {
+sectionSchema.statics.getClassSections = function(classId, academicYearId, schoolId) {
   return this.find({
     classId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }

@@ -27,7 +27,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
       startTime,
       endTime,
       room,
-      academicSessionId,
+      academicYearId,
       semester = 'FIRST'
     } = req.body;
 
@@ -47,7 +47,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
     });
 
     // Validate required fields
-    if (!academicSessionId || academicSessionId.trim() === '') {
+    if (!academicYearId || academicYearId.trim() === '') {
       return sendError(res, 400, 'Academic Session ID is required');
     }
 
@@ -114,7 +114,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
       teacherId,
       finalDay,
       periodNum,
-      academicSessionId,
+      academicYearId,
       req.user.schoolId
     );
 
@@ -128,7 +128,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
       sectionId,
       finalDay,
       periodNum,
-      academicSessionId,
+      academicYearId,
       req.user.schoolId
     );
 
@@ -147,7 +147,7 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
       startTime,
       endTime,
       room,
-      academicSessionId,
+      academicYearId,
       semester,
       schoolId: req.user.schoolId,
       createdBy: req.user.userId
@@ -182,10 +182,10 @@ const createTimetableSlot = asyncHandler(async (req, res) => {
  */
 const createBulkTimetable = asyncHandler(async (req, res) => {
   try {
-    const { timetableSlots, academicSessionId } = req.body;
+    const { timetableSlots, academicYearId } = req.body;
 
-    // Validate academicSessionId
-    if (!academicSessionId || academicSessionId.trim() === '') {
+    // Validate academicYearId
+    if (!academicYearId || academicYearId.trim() === '') {
       return sendError(res, 400, 'Academic Session ID is required');
     }
 
@@ -221,7 +221,7 @@ const createBulkTimetable = asyncHandler(async (req, res) => {
         slot.teacherId,
         finalDay,
         periodNum,
-        academicSessionId,
+        academicYearId,
         req.user.schoolId
       );
 
@@ -234,7 +234,7 @@ const createBulkTimetable = asyncHandler(async (req, res) => {
         slot.sectionId,
         finalDay,
         periodNum,
-        academicSessionId,
+        academicYearId,
         req.user.schoolId
       );
 
@@ -257,7 +257,7 @@ const createBulkTimetable = asyncHandler(async (req, res) => {
       return {
         ...normalizedSlot,
         schoolId: req.user.schoolId,
-        academicSessionId,
+        academicYearId,
         createdBy: req.user.userId
       };
     });
@@ -267,7 +267,7 @@ const createBulkTimetable = asyncHandler(async (req, res) => {
 
     logger.info('Bulk timetable slots created successfully', {
       count: createdSlots.length,
-      academicSessionId,
+      academicYearId,
       createdBy: req.user.userId
     });
 
@@ -292,9 +292,9 @@ const createBulkTimetable = asyncHandler(async (req, res) => {
 const getClassTimetable = asyncHandler(async (req, res) => {
   try {
     const { classId, sectionId } = req.params;
-    const { academicSessionId, day, semester } = req.query;
+    const { academicYearId, day, semester } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -314,7 +314,7 @@ const getClassTimetable = asyncHandler(async (req, res) => {
     let filter = {
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId: req.user.schoolId,
       isActive: true,
       isDeleted: { $ne: true }
@@ -358,21 +358,21 @@ const getClassTimetable = asyncHandler(async (req, res) => {
 const getTeacherTimetable = asyncHandler(async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { academicSessionId, day, semester } = req.query;
+    const { academicYearId, day, semester } = req.query;
 
     // Check authorization (teacher can only view own timetable)
     if (req.user.role === 'teacher' && teacherId !== req.user.userId) {
       return sendError(res, 403, 'You can only view your own timetable');
     }
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
     // Build filter
     let filter = {
       teacherId,
-      academicSessionId,
+      academicYearId,
       schoolId: req.user.schoolId,
       isActive: true,
       isDeleted: { $ne: true }
@@ -416,9 +416,9 @@ const getTeacherTimetable = asyncHandler(async (req, res) => {
 const getWeeklyTimetable = asyncHandler(async (req, res) => {
   try {
     const { classId, sectionId } = req.params;
-    const { academicSessionId, semester } = req.query;
+    const { academicYearId, semester } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -438,7 +438,7 @@ const getWeeklyTimetable = asyncHandler(async (req, res) => {
     const weeklyTimetable = await Timetable.getWeeklyTimetable(
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       req.user.schoolId
     );
 
@@ -496,7 +496,7 @@ const updateTimetableSlot = asyncHandler(async (req, res) => {
       const checkTeacher = updateData.teacherId || timetableEntry.teacherId;
       const checkClass = updateData.classId || timetableEntry.classId;
       const checkSection = updateData.sectionId || timetableEntry.sectionId;
-      const checkSession = updateData.academicSessionId || timetableEntry.academicSessionId;
+      const checkSession = updateData.academicYearId || timetableEntry.academicYearId;
 
       // Check teacher conflict
       const teacherConflict = await Timetable.checkTeacherConflict(
@@ -639,7 +639,7 @@ const deleteClassTimetable = asyncHandler(async (req, res) => {
       {
         classId,
         sectionId,
-        academicSessionId: sessionId,
+        academicYearId: sessionId,
         schoolId: req.user.schoolId,
         isDeleted: { $ne: true }
       },

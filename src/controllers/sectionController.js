@@ -5,7 +5,7 @@ const asyncHandler = require('express-async-handler');
 
 // Create a new section
 const createSection = asyncHandler(async (req, res) => {
-  const { name, classId, capacity, roomNumber, floor, building, academicSessionId } = req.body;
+  const { name, classId, capacity, roomNumber, floor, building, academicYearId } = req.body;
 
   // Validate classId belongs to the same school
   const classData = await Class.findOne({ _id: classId, schoolId: req.user.schoolId });
@@ -17,7 +17,7 @@ const createSection = asyncHandler(async (req, res) => {
   const sectionData = {
     name,
     classId,
-    academicSessionId,
+    academicYearId,
     schoolId: req.user.schoolId,
   };
 

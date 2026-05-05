@@ -36,7 +36,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *             required:
  *               - title
  *               - date
- *               - academicSessionId
+ *               - academicYearId
  *             properties:
  *               title:
  *                 type: string
@@ -112,7 +112,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *                 type: boolean
  *                 default: true
  *                 description: Whether to send notifications
- *               academicSessionId:
+ *               academicYearId:
  *                 type: string
  *                 description: Academic session ID
  *     responses:
@@ -153,7 +153,7 @@ router.post('/', authMiddleware, createCalendarEvent);
  *           format: date-time
  *         description: End date for filtering
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -232,7 +232,7 @@ router.get('/', authMiddleware, getCalendarEvents);
  *           maximum: 12
  *         description: Month (1-12)
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -282,7 +282,7 @@ router.get('/monthly/:year/:month', authMiddleware, getMonthlyCalendar);
  *           default: 30
  *         description: Number of days to look ahead
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -332,7 +332,7 @@ router.get('/upcoming', authMiddleware, getUpcomingEvents);
  *           maximum: 2030
  *         description: Year (YYYY)
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -369,7 +369,7 @@ router.get('/holidays/:year', authMiddleware, getHolidays);
  *           maximum: 2030
  *         description: Year (YYYY)
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string

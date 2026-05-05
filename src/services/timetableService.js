@@ -23,7 +23,7 @@ const createTimetableSlot = async (slotData, schoolId, userId) => {
       startTime,
       endTime,
       room,
-      academicSessionId,
+      academicYearId,
       semester = 'FIRST'
     } = slotData;
 
@@ -67,7 +67,7 @@ const createTimetableSlot = async (slotData, schoolId, userId) => {
       teacherId,
       day.toUpperCase(),
       periodNumber,
-      academicSessionId,
+      academicYearId,
       schoolId
     );
 
@@ -81,7 +81,7 @@ const createTimetableSlot = async (slotData, schoolId, userId) => {
       sectionId,
       day.toUpperCase(),
       periodNumber,
-      academicSessionId,
+      academicYearId,
       schoolId
     );
 
@@ -100,7 +100,7 @@ const createTimetableSlot = async (slotData, schoolId, userId) => {
       startTime,
       endTime,
       room,
-      academicSessionId,
+      academicYearId,
       semester: semester.toUpperCase(),
       schoolId,
       createdBy: userId
@@ -130,7 +130,7 @@ const createTimetableSlot = async (slotData, schoolId, userId) => {
 /**
  * Create multiple timetable slots (bulk)
  */
-const createBulkTimetable = async (slots, academicSessionId, schoolId, userId) => {
+const createBulkTimetable = async (slots, academicYearId, schoolId, userId) => {
   try {
     if (!Array.isArray(slots) || slots.length === 0) {
       throw new Error('Timetable slots array is required and must not be empty');
@@ -142,7 +142,7 @@ const createBulkTimetable = async (slots, academicSessionId, schoolId, userId) =
         slot.teacherId,
         slot.day.toUpperCase(),
         slot.periodNumber,
-        academicSessionId,
+        academicYearId,
         schoolId
       );
 
@@ -158,7 +158,7 @@ const createBulkTimetable = async (slots, academicSessionId, schoolId, userId) =
         slot.sectionId,
         slot.day.toUpperCase(),
         slot.periodNumber,
-        academicSessionId,
+        academicYearId,
         schoolId
       );
 
@@ -176,7 +176,7 @@ const createBulkTimetable = async (slots, academicSessionId, schoolId, userId) =
       day: slot.day.toUpperCase(),
       semester: (slot.semester || 'FIRST').toUpperCase(),
       schoolId,
-      academicSessionId,
+      academicYearId,
       createdBy: userId
     }));
 
@@ -185,7 +185,7 @@ const createBulkTimetable = async (slots, academicSessionId, schoolId, userId) =
 
     logger.info('Bulk timetable slots created successfully', {
       count: createdSlots.length,
-      academicSessionId,
+      academicYearId,
       createdBy: userId
     });
 
@@ -204,7 +204,7 @@ const createBulkTimetable = async (slots, academicSessionId, schoolId, userId) =
 /**
  * Get class timetable with filtering
  */
-const getClassTimetable = async (classId, sectionId, academicSessionId, schoolId, filters = {}) => {
+const getClassTimetable = async (classId, sectionId, academicYearId, schoolId, filters = {}) => {
   try {
     const { day, semester } = filters;
 
@@ -212,7 +212,7 @@ const getClassTimetable = async (classId, sectionId, academicSessionId, schoolId
     const filter = {
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId,
       isActive: true,
       isDeleted: { $ne: true }
@@ -247,7 +247,7 @@ const getClassTimetable = async (classId, sectionId, academicSessionId, schoolId
       error: error.message,
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId
     });
     throw error;
@@ -257,14 +257,14 @@ const getClassTimetable = async (classId, sectionId, academicSessionId, schoolId
 /**
  * Get teacher timetable with filtering
  */
-const getTeacherTimetable = async (teacherId, academicSessionId, schoolId, filters = {}) => {
+const getTeacherTimetable = async (teacherId, academicYearId, schoolId, filters = {}) => {
   try {
     const { day, semester } = filters;
 
     // Build filter
     const filter = {
       teacherId,
-      academicSessionId,
+      academicYearId,
       schoolId,
       isActive: true,
       isDeleted: { $ne: true }
@@ -298,7 +298,7 @@ const getTeacherTimetable = async (teacherId, academicSessionId, schoolId, filte
     logger.error('Error getting teacher timetable', {
       error: error.message,
       teacherId,
-      academicSessionId,
+      academicYearId,
       schoolId
     });
     throw error;
@@ -309,12 +309,12 @@ const getTeacherTimetable = async (teacherId, academicSessionId, schoolId, filte
  * Get weekly timetable grouped by days
  * Returns format: { MONDAY: [...], TUESDAY: [...], ... }
  */
-const getWeeklyTimetable = async (classId, sectionId, academicSessionId, schoolId, semester = null) => {
+const getWeeklyTimetable = async (classId, sectionId, academicYearId, schoolId, semester = null) => {
   try {
     const weeklyData = await Timetable.getWeeklyTimetable(
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId
     );
 
@@ -345,7 +345,7 @@ const getWeeklyTimetable = async (classId, sectionId, academicSessionId, schoolI
       error: error.message,
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId
     });
     throw error;
@@ -376,7 +376,7 @@ const updateTimetableSlot = async (timetableId, updateData, schoolId, userId) =>
       const checkTeacher = updateData.teacherId || timetableEntry.teacherId;
       const checkClass = updateData.classId || timetableEntry.classId;
       const checkSection = updateData.sectionId || timetableEntry.sectionId;
-      const checkSession = updateData.academicSessionId || timetableEntry.academicSessionId;
+      const checkSession = updateData.academicYearId || timetableEntry.academicYearId;
 
       // Check teacher conflict
       const teacherConflict = await Timetable.checkTeacherConflict(
@@ -501,7 +501,7 @@ const deleteClassTimetable = async (classId, sectionId, sessionId, schoolId, use
       {
         classId,
         sectionId,
-        academicSessionId: sessionId,
+        academicYearId: sessionId,
         schoolId,
         isDeleted: { $ne: true }
       },
@@ -553,7 +553,7 @@ const validateTimetableSlot = (slotData) => {
   if (!slotData.teacherId) errors.push('teacherId is required');
   if (!slotData.startTime) errors.push('startTime is required');
   if (!slotData.endTime) errors.push('endTime is required');
-  if (!slotData.academicSessionId) errors.push('academicSessionId is required');
+  if (!slotData.academicYearId) errors.push('academicYearId is required');
 
   // Time format validation (HH:MM)
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;

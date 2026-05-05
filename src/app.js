@@ -127,6 +127,17 @@ app.use(globalLimiter);
 app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
+// 4.5 Backward compatibility for frontend sending academicSessionId instead of academicYearId
+app.use((req, res, next) => {
+  if (req.query && req.query.academicSessionId && !req.query.academicYearId) {
+    req.query.academicYearId = req.query.academicSessionId;
+  }
+  if (req.body && req.body.academicSessionId && !req.body.academicYearId) {
+    req.body.academicYearId = req.body.academicSessionId;
+  }
+  next();
+});
+
 // 5. HTTP Request Logging (Morgan with Winston)
 const morganFormat = ':method :url :status :response-time ms';
 app.use(morgan(morganFormat, {

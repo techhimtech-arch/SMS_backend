@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const ImprovedStudentFee = require('../models/ImprovedStudentFee');
-const ImprovedFeeStructure = require('../models/ImprovedFeeStructure');
+const ImprovedStudentFee = require('../models/StudentFee');
+const ImprovedFeeStructure = require('../models/FeeStructure');
 const Enrollment = require('../models/Enrollment');
 const logger = require('../utils/logger');
 

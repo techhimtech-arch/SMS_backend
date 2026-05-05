@@ -20,7 +20,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -99,7 +99,7 @@ router.get('/', [authMiddleware, ...academicSummaryController.getAcademicSummary
  *           type: string
  *         description: Class ID
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string
@@ -153,7 +153,7 @@ router.get('/class-stats/:classId', [authMiddleware, ...academicSummaryControlle
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: academicSessionId
+ *         name: academicYearId
  *         required: true
  *         schema:
  *           type: string

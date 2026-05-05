@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 const User = require('../models/User');
 const Class = require('../models/Class');
 const Section = require('../models/Section');
@@ -429,15 +429,18 @@ const getRecentActivities = async (req, res) => {
     const recentStudents = await Student.find({ schoolId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('name email createdAt classId')
-      .populate('classId', 'name');
+      .select('firstName lastName email createdAt')
+      .populate({
+        path: 'currentEnrollment',
+        populate: { path: 'classId', select: 'name' }
+      });
     
     // Get recent fee payments
     const recentPayments = await FeePayment.find({ schoolId })
       .sort({ paymentDate: -1 })
       .limit(5)
       .select('amount paymentDate status studentId')
-      .populate('studentId', 'name');
+      .populate('studentId', 'firstName lastName');
     
     // Get recent exam results
     const recentResults = await Result.find({ schoolId })
@@ -445,7 +448,7 @@ const getRecentActivities = async (req, res) => {
       .limit(5)
       .select('marksObtained maxMarks grade examId studentId createdAt')
       .populate('examId', 'name')
-      .populate('studentId', 'name');
+      .populate('studentId', 'firstName lastName');
     
     // Get recent announcements
     const recentAnnouncements = await Announcement.find({ schoolId })
@@ -457,24 +460,30 @@ const getRecentActivities = async (req, res) => {
       ...recentStudents.map(student => ({
         type: 'student_registration',
         title: 'New Student Registered',
-        description: `${student.name} registered in ${student.classId?.name || 'Unknown Class'}`,
+        description: `${student.firstName} ${student.lastName} registered in ${student.currentEnrollment?.classId?.name || 'Unknown Class'}`,
         timestamp: student.createdAt,
         data: student
       })),
-      ...recentPayments.map(payment => ({
-        type: 'fee_payment',
-        title: 'Fee Payment Received',
-        description: `${payment.studentId?.name || 'Unknown'} paid Rs. ${payment.amount}`,
-        timestamp: payment.paymentDate,
-        data: payment
-      })),
-      ...recentResults.map(result => ({
-        type: 'exam_result',
-        title: 'Exam Result Added',
-        description: `${result.studentId?.name || 'Unknown'} scored ${result.marksObtained}/${result.maxMarks} in ${result.examId?.name || 'Unknown Exam'}`,
-        timestamp: result.createdAt,
-        data: result
-      })),
+      ...recentPayments.map(payment => {
+        const studentName = payment.studentId ? `${payment.studentId.firstName} ${payment.studentId.lastName}` : 'Unknown';
+        return {
+          type: 'fee_payment',
+          title: 'Fee Payment Received',
+          description: `${studentName} paid Rs. ${payment.amount}`,
+          timestamp: payment.paymentDate,
+          data: payment
+        };
+      }),
+      ...recentResults.map(result => {
+        const studentName = result.studentId ? `${result.studentId.firstName} ${result.studentId.lastName}` : 'Unknown';
+        return {
+          type: 'exam_result',
+          title: 'Exam Result Added',
+          description: `${studentName} scored ${result.marksObtained}/${result.maxMarks} in ${result.examId?.name || 'Unknown Exam'}`,
+          timestamp: result.createdAt,
+          data: result
+        };
+      }),
       ...recentAnnouncements.map(announcement => ({
         type: 'announcement',
         title: announcement.title,

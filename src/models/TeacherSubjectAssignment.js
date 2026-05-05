@@ -23,7 +23,7 @@ const teacherSubjectAssignmentSchema = new mongoose.Schema(
       ref: 'Section',
       required: true,
     },
-    academicSessionId: {
+    academicYearId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AcademicYear',
       required: true,
@@ -81,27 +81,27 @@ teacherSubjectAssignmentSchema.index({
   subjectId: 1, 
   classId: 1, 
   sectionId: 1, 
-  academicSessionId: 1, 
+  academicYearId: 1, 
   schoolId: 1 
 }, { unique: true });
 
 // Performance indexes
 teacherSubjectAssignmentSchema.index({ schoolId: 1, isActive: 1 });
 teacherSubjectAssignmentSchema.index({ schoolId: 1, isDeleted: 1 });
-teacherSubjectAssignmentSchema.index({ academicSessionId: 1, schoolId: 1 });
-teacherSubjectAssignmentSchema.index({ teacherId: 1, academicSessionId: 1, isActive: 1 });
-teacherSubjectAssignmentSchema.index({ classId: 1, sectionId: 1, academicSessionId: 1, isActive: 1 });
-teacherSubjectAssignmentSchema.index({ subjectId: 1, academicSessionId: 1, isActive: 1 });
+teacherSubjectAssignmentSchema.index({ academicYearId: 1, schoolId: 1 });
+teacherSubjectAssignmentSchema.index({ teacherId: 1, academicYearId: 1, isActive: 1 });
+teacherSubjectAssignmentSchema.index({ classId: 1, sectionId: 1, academicYearId: 1, isActive: 1 });
+teacherSubjectAssignmentSchema.index({ subjectId: 1, academicYearId: 1, isActive: 1 });
 teacherSubjectAssignmentSchema.index({ createdBy: 1 });
 
 // Apply soft delete filter
 addSoftDeleteFilter(teacherSubjectAssignmentSchema);
 
 // Static methods for common queries
-teacherSubjectAssignmentSchema.statics.findByTeacher = function(teacherId, academicSessionId, schoolId) {
+teacherSubjectAssignmentSchema.statics.findByTeacher = function(teacherId, academicYearId, schoolId) {
   return this.find({
     teacherId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -112,10 +112,10 @@ teacherSubjectAssignmentSchema.statics.findByTeacher = function(teacherId, acade
   ]);
 };
 
-teacherSubjectAssignmentSchema.statics.findBySubject = function(subjectId, academicSessionId, schoolId) {
+teacherSubjectAssignmentSchema.statics.findBySubject = function(subjectId, academicYearId, schoolId) {
   return this.find({
     subjectId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -126,11 +126,11 @@ teacherSubjectAssignmentSchema.statics.findBySubject = function(subjectId, acade
   ]);
 };
 
-teacherSubjectAssignmentSchema.statics.findByClassSection = function(classId, sectionId, academicSessionId, schoolId) {
+teacherSubjectAssignmentSchema.statics.findByClassSection = function(classId, sectionId, academicYearId, schoolId) {
   return this.find({
     classId,
     sectionId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -140,12 +140,12 @@ teacherSubjectAssignmentSchema.statics.findByClassSection = function(classId, se
   ]);
 };
 
-teacherSubjectAssignmentSchema.statics.getTeacherWorkload = function(teacherId, academicSessionId, schoolId) {
+teacherSubjectAssignmentSchema.statics.getTeacherWorkload = function(teacherId, academicYearId, schoolId) {
   return this.aggregate([
     {
       $match: {
         teacherId: new mongoose.Types.ObjectId(teacherId),
-        academicSessionId: new mongoose.Types.ObjectId(academicSessionId),
+        academicYearId: new mongoose.Types.ObjectId(academicYearId),
         schoolId: new mongoose.Types.ObjectId(schoolId),
         isActive: true,
         isDeleted: { $ne: true }

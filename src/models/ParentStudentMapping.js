@@ -10,7 +10,7 @@ const parentStudentMappingSchema = new mongoose.Schema({
   },
   studentIds: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student',
+    ref: 'StudentProfile',
     required: [true, 'At least one student ID is required']
   }],
   relationship: {

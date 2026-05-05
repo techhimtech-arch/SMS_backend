@@ -28,7 +28,7 @@ exports.assignClassTeacher = asyncHandler(async (req, res, next) => {
     classId,
     sectionId,
     schoolId,
-    academicYear,
+    academicYearId,
     isActive: true
   });
 
@@ -65,7 +65,7 @@ exports.assignClassTeacher = asyncHandler(async (req, res, next) => {
 // @access  Private (school_admin)
 exports.getClassTeacherAssignments = asyncHandler(async (req, res, next) => {
   const { schoolId } = req.user;
-  const { academicYear, classId } = req.query;
+  const { academicYearId, classId } = req.query;
 
   const filter = { schoolId, isActive: true };
   if (academicYear) filter.academicYear = academicYear;

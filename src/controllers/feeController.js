@@ -440,12 +440,12 @@ const getFeeReceipt = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Accountant)
  */
 const generateStudentFees = asyncHandler(async (req, res) => {
-  const { studentId, classId, sectionId, academicSessionId, customFeeItems } = req.body;
+  const { studentId, classId, sectionId, academicYearId, customFeeItems } = req.body;
 
   // Check if student already has fees for this session
   const existing = await StudentFee.findOne({
     studentId,
-    academicYearId: academicSessionId,
+    academicYearId: academicYearId,
     isDeleted: { $ne: true }
   });
 
@@ -467,7 +467,7 @@ const generateStudentFees = asyncHandler(async (req, res) => {
     }));
   } else {
     // Get fee structure for class and generate fee items
-    const feeStructure = await FeeStructure.findActiveForClass(classId, academicSessionId);
+    const feeStructure = await FeeStructure.findActiveForClass(classId, academicYearId);
 
     if (!feeStructure) {
       return res.status(404).json({
@@ -512,7 +512,7 @@ const generateStudentFees = asyncHandler(async (req, res) => {
     studentId,
     classId,
     sectionId,
-    academicYearId: academicSessionId,
+    academicYearId: academicYearId,
     schoolId: req.user.schoolId,
     feeItems,
     totalAmount: feeItems.reduce((sum, item) => sum + item.amount, 0),
@@ -548,7 +548,7 @@ const generateStudentFees = asyncHandler(async (req, res) => {
  */
 const getStudentFees = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const { academicSessionId } = req.query;
+  const { academicYearId } = req.query;
 
   // Check permissions for student/parent
   if (req.user.role === 'student' && req.user.id !== studentId) {
@@ -559,7 +559,7 @@ const getStudentFees = asyncHandler(async (req, res) => {
   }
 
   const filters = { studentId, isDeleted: { $ne: true } };
-  if (academicSessionId) filters.academicYearId = academicSessionId;
+  if (academicYearId) filters.academicYearId = academicYearId;
 
   const studentFees = await StudentFee.find(filters)
     .populate('studentId', 'name admissionNumber')
@@ -621,7 +621,7 @@ const makePayment = asyncHandler(async (req, res) => {
     studentFeeId,
     feeItemId,
     schoolId: req.user.schoolId,
-    academicSessionId: studentFee.academicYearId,
+    academicYearId: studentFee.academicYearId,
     amountPaid,
     paymentMode,
     transactionId,
@@ -659,12 +659,12 @@ const makePayment = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Accountant)
  */
 const getPayments = asyncHandler(async (req, res) => {
-  const { studentId, academicSessionId, paymentMode, fromDate, toDate, page = 1, limit = 20 } = req.query;
+  const { studentId, academicYearId, paymentMode, fromDate, toDate, page = 1, limit = 20 } = req.query;
 
   const filters = { schoolId: req.user.schoolId };
 
   if (studentId) filters.studentId = studentId;
-  if (academicSessionId) filters.academicSessionId = academicSessionId;
+  if (academicYearId) filters.academicYearId = academicYearId;
   if (paymentMode) filters.paymentMode = paymentMode;
   if (fromDate || toDate) {
     filters.paymentDate = {};
@@ -702,7 +702,7 @@ const getPayments = asyncHandler(async (req, res) => {
  * @access  Private (Admin, Accountant)
  */
 const getFeeDues = asyncHandler(async (req, res) => {
-  const { classId, sectionId, academicSessionId, status, page = 1, limit = 20 } = req.query;
+  const { classId, sectionId, academicYearId, status, page = 1, limit = 20 } = req.query;
 
   const filters = {
     schoolId: req.user.schoolId,
@@ -712,7 +712,7 @@ const getFeeDues = asyncHandler(async (req, res) => {
 
   if (classId) filters.classId = classId;
   if (sectionId) filters.sectionId = sectionId;
-  if (academicSessionId) filters.academicYearId = academicSessionId;
+  if (academicYearId) filters.academicYearId = academicYearId;
   if (status) filters['feeItems.status'] = status;
 
   const pageNum = parseInt(page);

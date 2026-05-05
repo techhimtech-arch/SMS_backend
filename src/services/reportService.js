@@ -1,5 +1,5 @@
 const PDFDocument = require('pdfkit');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 const Result = require('../models/Result');
 const Exam = require('../models/Exam');
 const School = require('../models/School');

@@ -20,7 +20,7 @@ const validateCreateFeeStructure = [
     .trim()
     .matches(/^\d{4}-\d{4}$/).withMessage('Academic year must be in format YYYY-YYYY (e.g., 2024-2025)'),
 
-  check('academicSessionId')
+  check('academicYearId')
     .optional()
     .isMongoId().withMessage('Invalid academic session ID'),
 
@@ -185,7 +185,7 @@ const validateGenerateStudentFees = [
     .notEmpty().withMessage('Section ID is required')
     .isMongoId().withMessage('Invalid section ID'),
 
-  body('academicSessionId')
+  body('academicYearId')
     .notEmpty().withMessage('Academic session ID is required')
     .isMongoId().withMessage('Invalid academic session ID'),
 
@@ -278,7 +278,7 @@ const validateFeeQueryParams = [
     .optional()
     .isMongoId().withMessage('Invalid class ID'),
 
-  query('academicSessionId')
+  query('academicYearId')
     .optional()
     .isMongoId().withMessage('Invalid academic session ID'),
 

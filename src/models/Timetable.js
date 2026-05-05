@@ -60,7 +60,7 @@ const timetableSchema = new mongoose.Schema(
       trim: true,
       maxlength: [50, 'Room cannot exceed 50 characters']
     },
-    academicSessionId: {
+    academicYearId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AcademicYear',
       required: true,
@@ -114,29 +114,29 @@ timetableSchema.index({
   sectionId: 1, 
   day: 1, 
   periodNumber: 1, 
-  academicSessionId: 1, 
+  academicYearId: 1, 
   schoolId: 1 
 }, { unique: true });
 
 // Performance indexes
 timetableSchema.index({ schoolId: 1, isActive: 1 });
 timetableSchema.index({ schoolId: 1, isDeleted: 1 });
-timetableSchema.index({ academicSessionId: 1, schoolId: 1 });
-timetableSchema.index({ classId: 1, sectionId: 1, academicSessionId: 1, isActive: 1 });
-timetableSchema.index({ teacherId: 1, day: 1, academicSessionId: 1, isActive: 1 });
-timetableSchema.index({ subjectId: 1, academicSessionId: 1, isActive: 1 });
+timetableSchema.index({ academicYearId: 1, schoolId: 1 });
+timetableSchema.index({ classId: 1, sectionId: 1, academicYearId: 1, isActive: 1 });
+timetableSchema.index({ teacherId: 1, day: 1, academicYearId: 1, isActive: 1 });
+timetableSchema.index({ subjectId: 1, academicYearId: 1, isActive: 1 });
 timetableSchema.index({ createdBy: 1 });
 
 // Apply soft delete filter
 addSoftDeleteFilter(timetableSchema);
 
 // Static methods for conflict checking
-timetableSchema.statics.checkTeacherConflict = function(teacherId, day, periodNumber, academicSessionId, schoolId, excludeId = null) {
+timetableSchema.statics.checkTeacherConflict = function(teacherId, day, periodNumber, academicYearId, schoolId, excludeId = null) {
   const query = {
     teacherId,
     day,
     periodNumber,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -149,13 +149,13 @@ timetableSchema.statics.checkTeacherConflict = function(teacherId, day, periodNu
   return this.findOne(query);
 };
 
-timetableSchema.statics.checkClassConflict = function(classId, sectionId, day, periodNumber, academicSessionId, schoolId, excludeId = null) {
+timetableSchema.statics.checkClassConflict = function(classId, sectionId, day, periodNumber, academicYearId, schoolId, excludeId = null) {
   const query = {
     classId,
     sectionId,
     day,
     periodNumber,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -168,11 +168,11 @@ timetableSchema.statics.checkClassConflict = function(classId, sectionId, day, p
   return this.findOne(query);
 };
 
-timetableSchema.statics.getClassTimetable = function(classId, sectionId, academicSessionId, schoolId) {
+timetableSchema.statics.getClassTimetable = function(classId, sectionId, academicYearId, schoolId) {
   return this.find({
     classId,
     sectionId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -184,10 +184,10 @@ timetableSchema.statics.getClassTimetable = function(classId, sectionId, academi
   .sort({ periodNumber: 1 });
 };
 
-timetableSchema.statics.getTeacherTimetable = function(teacherId, academicSessionId, schoolId) {
+timetableSchema.statics.getTeacherTimetable = function(teacherId, academicYearId, schoolId) {
   return this.find({
     teacherId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
@@ -200,13 +200,13 @@ timetableSchema.statics.getTeacherTimetable = function(teacherId, academicSessio
   .sort({ day: 1, periodNumber: 1 });
 };
 
-timetableSchema.statics.getWeeklyTimetable = function(classId, sectionId, academicSessionId, schoolId) {
+timetableSchema.statics.getWeeklyTimetable = function(classId, sectionId, academicYearId, schoolId) {
   return this.aggregate([
     {
       $match: {
         classId: new mongoose.Types.ObjectId(classId),
         sectionId: new mongoose.Types.ObjectId(sectionId),
-        academicSessionId: new mongoose.Types.ObjectId(academicSessionId),
+        academicYearId: new mongoose.Types.ObjectId(academicYearId),
         schoolId: new mongoose.Types.ObjectId(schoolId),
         isActive: true,
         isDeleted: { $ne: true }
@@ -281,7 +281,7 @@ timetableSchema.pre('save', async function(next) {
         this.teacherId,
         this.day,
         this.periodNumber,
-        this.academicSessionId,
+        this.academicYearId,
         this.schoolId,
         this._id
       );
@@ -296,7 +296,7 @@ timetableSchema.pre('save', async function(next) {
         this.sectionId,
         this.day,
         this.periodNumber,
-        this.academicSessionId,
+        this.academicYearId,
         this.schoolId,
         this._id
       );
@@ -321,7 +321,7 @@ timetableSchema.pre('insertMany', async function(next, docs) {
         doc.teacherId,
         doc.day,
         doc.periodNumber,
-        doc.academicSessionId,
+        doc.academicYearId,
         doc.schoolId
       );
 
@@ -335,7 +335,7 @@ timetableSchema.pre('insertMany', async function(next, docs) {
         doc.sectionId,
         doc.day,
         doc.periodNumber,
-        doc.academicSessionId,
+        doc.academicYearId,
         doc.schoolId
       );
 

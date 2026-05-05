@@ -5,7 +5,7 @@ const studentPromotionSchema = new mongoose.Schema(
   {
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Student',
+      ref: 'StudentProfile',
       required: true,
     },
     fromAcademicSessionId: {

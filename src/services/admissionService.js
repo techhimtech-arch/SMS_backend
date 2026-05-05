@@ -128,7 +128,7 @@ const admitStudent = async (admissionData, schoolId, adminId) => {
 const getAdmissionDetails = async (studentId, schoolId) => {
   try {
     // First try Student model (for transferred students)
-    const Student = require('../models/Student');
+    const Student = require('../models/StudentProfile');
     let student = await Student.findOne({ 
       _id: studentId, 
       schoolId,

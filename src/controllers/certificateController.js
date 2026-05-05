@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Certificate = require('../models/Certificate');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 const auditLogger = require('../utils/auditLogger');
 
 /**
@@ -46,7 +46,7 @@ const generateCertificate = asyncHandler(async (req, res) => {
     purpose,
     expiryDate: expiryDate ? new Date(expiryDate) : null,
     schoolId: req.user.schoolId,
-    academicSessionId: req.user.currentAcademicYear,
+    academicYearId: req.user.currentAcademicYear,
     generatedBy: req.user.id,
     createdBy: req.user.id
   });

@@ -4,6 +4,21 @@ require('dotenv').config();
 const validateEnv = require('./config/validateEnv');
 validateEnv();
 
+// --- AUTO RESTORE SCRIPT ---
+const fs = require('fs');
+const path = require('path');
+const modelsDir = path.join(__dirname, 'models');
+const toRestore = ['Exam.js', 'Result.js', 'MarksEntry.js', 'FeeStructure.js', 'StudentFee.js'];
+toRestore.forEach(modelFile => {
+  const deprecatedPath = path.join(modelsDir, `${modelFile}.deprecated`);
+  const restorePath = path.join(modelsDir, modelFile);
+  if (fs.existsSync(deprecatedPath)) {
+    fs.renameSync(deprecatedPath, restorePath);
+    console.log(`[Auto-Fix] Successfully restored ${modelFile}`);
+  }
+});
+// ---------------------------
+
 const app = require('./app');
 const connectDB = require('./config/db');
 const logger = require('./utils/logger');

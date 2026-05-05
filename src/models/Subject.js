@@ -31,7 +31,7 @@ const subjectSchema = new mongoose.Schema(
       enum: ['SCIENCE', 'COMMERCE', 'ARTS', 'LANGUAGE', 'MATHEMATICS', 'PHYSICAL_EDUCATION', 'COMPUTER_SCIENCE', 'OTHER'],
       default: 'OTHER'
     },
-    academicSessionId: {
+    academicYearId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AcademicYear',
       required: true,
@@ -105,15 +105,15 @@ const subjectSchema = new mongoose.Schema(
 
 // Indexes for performance and validation
 // Subject code can be duplicate across different classes in same school, but unique within same class + session
-subjectSchema.index({ code: 1, classId: 1, academicSessionId: 1, schoolId: 1 }, { unique: true });
-subjectSchema.index({ name: 1, classId: 1, academicSessionId: 1, schoolId: 1 }, { unique: true });
+subjectSchema.index({ code: 1, classId: 1, academicYearId: 1, schoolId: 1 }, { unique: true });
+subjectSchema.index({ name: 1, classId: 1, academicYearId: 1, schoolId: 1 }, { unique: true });
 
 // Performance indexes
 subjectSchema.index({ schoolId: 1, isActive: 1 });
 subjectSchema.index({ schoolId: 1, isDeleted: 1 });
-subjectSchema.index({ classId: 1, academicSessionId: 1, isActive: 1 });
+subjectSchema.index({ classId: 1, academicYearId: 1, isActive: 1 });
 subjectSchema.index({ department: 1, schoolId: 1 });
-subjectSchema.index({ academicSessionId: 1, schoolId: 1 });
+subjectSchema.index({ academicYearId: 1, schoolId: 1 });
 subjectSchema.index({ teacherIds: 1 });
 subjectSchema.index({ createdBy: 1 });
 
@@ -121,30 +121,30 @@ subjectSchema.index({ createdBy: 1 });
 addSoftDeleteFilter(subjectSchema);
 
 // Static methods for common queries
-subjectSchema.statics.findByClass = function(classId, academicSessionId, schoolId) {
+subjectSchema.statics.findByClass = function(classId, academicYearId, schoolId) {
   return this.find({
     classId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
   }).populate('teacherIds', 'name email');
 };
 
-subjectSchema.statics.findByTeacher = function(teacherId, academicSessionId, schoolId) {
+subjectSchema.statics.findByTeacher = function(teacherId, academicYearId, schoolId) {
   return this.find({
     teacherIds: teacherId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isActive: true,
     isDeleted: { $ne: true }
   }).populate('classId', 'name');
 };
 
-subjectSchema.statics.findOptionalSubjects = function(classId, academicSessionId, schoolId) {
+subjectSchema.statics.findOptionalSubjects = function(classId, academicYearId, schoolId) {
   return this.find({
     classId,
-    academicSessionId,
+    academicYearId,
     schoolId,
     isOptional: true,
     isActive: true,

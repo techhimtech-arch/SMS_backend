@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Enrollment = require('../models/Enrollment');
-const Student = require('../models/Student');
+const Student = require('../models/StudentProfile');
 const Section = require('../models/Section');
 const logger = require('../utils/logger');
 const { sendSuccess, sendError } = require('../utils/response');
@@ -18,14 +18,14 @@ const bulkAssignRollNumbers = asyncHandler(async (req, res) => {
       enrollments, 
       startFrom = 1, 
       prefix = '', 
-      academicSessionId 
+      academicYearId 
     } = req.body;
 
     if (!Array.isArray(enrollments) || enrollments.length === 0) {
       return sendError(res, 400, 'Enrollments array is required');
     }
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -62,7 +62,7 @@ const bulkAssignRollNumbers = asyncHandler(async (req, res) => {
           rollNumber,
           classId,
           sectionId,
-          academicSessionId,
+          academicYearId,
           req.user.schoolId
         );
 
@@ -96,7 +96,7 @@ const bulkAssignRollNumbers = asyncHandler(async (req, res) => {
 
     logger.info('Bulk roll number assignment completed', {
       totalProcessed: enrollments.length,
-      academicSessionId,
+      academicYearId,
       assignedBy: req.user.userId
     });
 
@@ -130,13 +130,13 @@ const reassignRollNumbers = asyncHandler(async (req, res) => {
     const { 
       classId, 
       sectionId, 
-      academicSessionId, 
+      academicYearId, 
       startFrom = 1, 
       prefix = '',
       preserveExisting = false 
     } = req.body;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -144,7 +144,7 @@ const reassignRollNumbers = asyncHandler(async (req, res) => {
     const enrollments = await Enrollment.find({
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId: req.user.schoolId,
       status: 'ENROLLED',
       isDeleted: { $ne: true }
@@ -207,7 +207,7 @@ const reassignRollNumbers = asyncHandler(async (req, res) => {
     logger.info('Roll numbers reassigned successfully', {
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       totalProcessed: enrollments.length,
       reassignedBy: req.user.userId
     });
@@ -217,7 +217,7 @@ const reassignRollNumbers = asyncHandler(async (req, res) => {
       summary: {
         classId,
         sectionId,
-        academicSessionId,
+        academicYearId,
         totalProcessed: enrollments.length,
         successful: results.filter(r => r.success).length,
         failed: results.filter(r => !r.success).length
@@ -229,7 +229,7 @@ const reassignRollNumbers = asyncHandler(async (req, res) => {
       error: error.message,
       classId: req.body.classId,
       sectionId: req.body.sectionId,
-      academicSessionId: req.body.academicSessionId,
+      academicYearId: req.body.academicYearId,
       userId: req.user.userId,
       schoolId: req.user.schoolId
     });
@@ -246,9 +246,9 @@ const reassignRollNumbers = asyncHandler(async (req, res) => {
 const getRollNumberAssignments = asyncHandler(async (req, res) => {
   try {
     const { classId, sectionId } = req.params;
-    const { academicSessionId, search } = req.query;
+    const { academicYearId, search } = req.query;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -268,7 +268,7 @@ const getRollNumberAssignments = asyncHandler(async (req, res) => {
     let filter = {
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       schoolId: req.user.schoolId,
       status: 'ENROLLED',
       isDeleted: { $ne: true }
@@ -311,9 +311,9 @@ const getRollNumberAssignments = asyncHandler(async (req, res) => {
  */
 const autoAssignSessionRollNumbers = asyncHandler(async (req, res) => {
   try {
-    const { academicSessionId, prefix = '' } = req.body;
+    const { academicYearId, prefix = '' } = req.body;
 
-    if (!academicSessionId) {
+    if (!academicYearId) {
       return sendError(res, 400, 'Academic session ID is required');
     }
 
@@ -332,7 +332,7 @@ const autoAssignSessionRollNumbers = asyncHandler(async (req, res) => {
       const enrollments = await Enrollment.find({
         classId: section.classId._id,
         sectionId: section._id,
-        academicSessionId,
+        academicYearId,
         schoolId: req.user.schoolId,
         status: 'ENROLLED',
         isDeleted: { $ne: true }
@@ -366,7 +366,7 @@ const autoAssignSessionRollNumbers = asyncHandler(async (req, res) => {
     }
 
     logger.info('Auto roll number assignment for session completed', {
-      academicSessionId,
+      academicYearId,
       totalSections: sections.length,
       totalProcessed,
       totalSuccessful,
@@ -375,7 +375,7 @@ const autoAssignSessionRollNumbers = asyncHandler(async (req, res) => {
     });
 
     return sendSuccess(res, 200, 'Auto roll number assignment completed', {
-      academicSessionId,
+      academicYearId,
       summary: {
         totalSections: sections.length,
         totalProcessed,
@@ -387,7 +387,7 @@ const autoAssignSessionRollNumbers = asyncHandler(async (req, res) => {
   } catch (error) {
     logger.error('Failed to auto assign roll numbers for session', {
       error: error.message,
-      academicSessionId: req.body.academicSessionId,
+      academicYearId: req.body.academicYearId,
       userId: req.user.userId,
       schoolId: req.user.schoolId
     });
@@ -403,9 +403,9 @@ const autoAssignSessionRollNumbers = asyncHandler(async (req, res) => {
  */
 const validateRollNumber = asyncHandler(async (req, res) => {
   try {
-    const { rollNumber, classId, sectionId, academicSessionId, excludeId } = req.body;
+    const { rollNumber, classId, sectionId, academicYearId, excludeId } = req.body;
 
-    if (!rollNumber || !classId || !sectionId || !academicSessionId) {
+    if (!rollNumber || !classId || !sectionId || !academicYearId) {
       return sendError(res, 400, 'Roll number, class ID, section ID, and academic session ID are required');
     }
 
@@ -414,7 +414,7 @@ const validateRollNumber = asyncHandler(async (req, res) => {
       rollNumber,
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       req.user.schoolId,
       excludeId
     );
@@ -423,7 +423,7 @@ const validateRollNumber = asyncHandler(async (req, res) => {
       rollNumber,
       classId,
       sectionId,
-      academicSessionId,
+      academicYearId,
       isAvailable: !existingEnrollment,
       existingEnrollmentId: existingEnrollment ? existingEnrollment._id : null
     });
