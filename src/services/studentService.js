@@ -131,8 +131,16 @@ class StudentService {
     }
 
     // Optional filters (for admin or further filtering)
-    if (classId && role !== 'teacher') query.classId = new mongoose.Types.ObjectId(classId);
-    if (sectionId && role !== 'teacher') query.sectionId = new mongoose.Types.ObjectId(sectionId);
+    if (classId || sectionId) {
+      const Enrollment = mongoose.model('Enrollment');
+      const enrollmentQuery = { schoolId, isDeleted: { $ne: true } };
+      if (classId) enrollmentQuery.classId = classId;
+      if (sectionId) enrollmentQuery.sectionId = sectionId;
+      
+      const enrollments = await Enrollment.find(enrollmentQuery).select('studentId');
+      const studentIds = enrollments.map(e => e.studentId);
+      query._id = { $in: studentIds };
+    }
     
     // Search by name or admission number
     if (search) {
@@ -143,21 +151,25 @@ class StudentService {
           { admissionNumber: { $regex: search, $options: 'i' } }
         ]
       };
-      // Combine with existing query
-      if (query.$or) {
-        query = { $and: [{ $or: query.$or }, searchCondition] };
-        query.$and[0].schoolId = new mongoose.Types.ObjectId(schoolId);
-        query.$and[0].isActive = true;
+      
+      // If we already have _id from enrollment filter, we need to be careful
+      if (query._id) {
+        query = { $and: [query, searchCondition] };
       } else {
-        query.$or = searchCondition.$or;
+        query = { ...query, ...searchCondition };
       }
     }
 
     const [totalCount, students] = await Promise.all([
       Student.countDocuments(query),
       Student.find(query)
-        .populate('classId', 'name')
-        .populate('sectionId', 'name')
+        .populate({
+          path: 'currentEnrollment',
+          populate: [
+            { path: 'classId', select: 'name' },
+            { path: 'sectionId', select: 'name' }
+          ]
+        })
         .populate('parentUserId', 'name email')
         .populate('createdBy', 'name')
         .skip(skip)

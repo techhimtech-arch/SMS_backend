@@ -57,7 +57,7 @@ router.post(
 router.get(
   '/',
   authMiddleware,
-  authorizeRoles('school_admin'),
+  authorizeRoles('school_admin', 'teacher'),
   getClasses
 );
 

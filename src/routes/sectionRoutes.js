@@ -60,7 +60,7 @@ router.post('/', authMiddleware, authorizeRoles('school_admin'), validateSection
  *       200:
  *         description: List of sections
  */
-router.get('/', authMiddleware, authorizeRoles('school_admin'), getSections);
+router.get('/', authMiddleware, authorizeRoles('school_admin', 'teacher'), getSections);
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.get('/', authMiddleware, authorizeRoles('school_admin'), getSections);
  *       200:
  *         description: List of sections for the class
  */
-router.get('/class/:classId', authMiddleware, authorizeRoles('school_admin'), getSectionsByClass);
+router.get('/class/:classId', authMiddleware, authorizeRoles('school_admin', 'teacher'), getSectionsByClass);
 
 /**
  * @swagger
