@@ -9,6 +9,48 @@ const { authorizePermissions } = require('../middlewares/roleAuthorization');
 const { PERMISSIONS } = require('../utils/rbac');
 
 /**
+ * @desc    Get all subjects for a school
+ * @route    GET /api/v1/subjects
+ * @access   Private/School Admin, Teacher, Accountant
+ */
+const getAllSubjects = asyncHandler(async (req, res) => {
+  try {
+    const { academicYearId, classId, search, status } = req.query;
+
+    let filter = {
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    };
+
+    if (academicYearId) filter.academicYearId = academicYearId;
+    if (classId) filter.classId = classId;
+    if (status) filter.status = status.toUpperCase();
+
+    if (search) {
+      filter = buildSearchFilter(filter, search, ['name', 'code', 'description']);
+    }
+
+    const { data, pagination } = await getPaginatedResults(
+      Subject,
+      filter,
+      req.query,
+      {
+        sort: { name: 1 },
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'teacherIds', select: 'name' }
+        ]
+      }
+    );
+
+    return sendPaginatedResponse(res, 'Subjects retrieved successfully', data, pagination);
+  } catch (error) {
+    logger.error('Failed to get all subjects', { error: error.message });
+    return sendError(res, 500, 'Failed to get subjects');
+  }
+});
+
+/**
  * @desc    Create new subject
  * @route    POST /api/v1/subjects
  * @access   Private/School Admin
@@ -515,6 +557,189 @@ const removeTeacherFromSubject = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Bulk create subjects for a class
+ * @route    POST /api/v1/subjects/bulk
+ * @access   Private/School Admin
+ */
+const bulkCreateSubjects = asyncHandler(async (req, res) => {
+  try {
+    const { classId, academicYearId, subjects } = req.body;
+
+    if (!Array.isArray(subjects) || subjects.length === 0) {
+      return sendError(res, 400, 'Please provide an array of subjects');
+    }
+
+    // Validate class exists
+    const classExists = await Class.findOne({
+      _id: classId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (!classExists) {
+      return sendError(res, 400, 'Invalid class ID or class not found');
+    }
+
+    const createdSubjects = [];
+    const errors = [];
+
+    for (const sub of subjects) {
+      try {
+        // Check if subject code already exists
+        const existingSubject = await Subject.findOne({
+          code: sub.code.toUpperCase(),
+          classId,
+          academicYearId,
+          schoolId: req.user.schoolId,
+          isDeleted: { $ne: true }
+        });
+
+        if (existingSubject) {
+          errors.push({ code: sub.code, error: 'Subject code already exists in this class' });
+          continue;
+        }
+
+        const subject = await Subject.create({
+          ...sub,
+          code: sub.code.toUpperCase(),
+          classId,
+          academicYearId,
+          schoolId: req.user.schoolId,
+          createdBy: req.user.userId
+        });
+        createdSubjects.push(subject);
+      } catch (err) {
+        errors.push({ code: sub.code, error: err.message });
+      }
+    }
+
+    logger.info('Bulk subjects created', {
+      count: createdSubjects.length,
+      errors: errors.length,
+      classId,
+      schoolId: req.user.schoolId
+    });
+
+    return sendSuccess(res, 201, `Created ${createdSubjects.length} subjects. ${errors.length} errors.`, {
+      created: createdSubjects,
+      errors
+    });
+
+  } catch (error) {
+    logger.error('Failed to bulk create subjects', {
+      error: error.message,
+      userId: req.user.userId
+    });
+    return sendError(res, 500, 'Failed to bulk create subjects');
+  }
+});
+
+/**
+ * @desc    Clone subjects from one class to another
+ * @route    POST /api/v1/subjects/clone
+ * @access   Private/School Admin
+ */
+const cloneSubjects = asyncHandler(async (req, res) => {
+  try {
+    const { sourceClassId, targetClassId, academicYearId } = req.body;
+
+    // Get source subjects
+    const sourceSubjects = await Subject.find({
+      classId: sourceClassId,
+      academicYearId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (sourceSubjects.length === 0) {
+      return sendError(res, 404, 'No subjects found in source class to clone');
+    }
+
+    const clonedSubjects = [];
+    for (const sub of sourceSubjects) {
+      // Check if already exists in target
+      const exists = await Subject.findOne({
+        code: sub.code,
+        classId: targetClassId,
+        academicYearId,
+        schoolId: req.user.schoolId,
+        isDeleted: { $ne: true }
+      });
+
+      if (!exists) {
+        const newSub = sub.toObject();
+        delete newSub._id;
+        delete newSub.createdAt;
+        delete newSub.updatedAt;
+        newSub.classId = targetClassId;
+        newSub.teacherIds = []; // Don't clone teacher assignments by default
+        newSub.createdBy = req.user.userId;
+
+        const created = await Subject.create(newSub);
+        clonedSubjects.push(created);
+      }
+    }
+
+    return sendSuccess(res, 201, `Cloned ${clonedSubjects.length} subjects to target class`, clonedSubjects);
+
+  } catch (error) {
+    logger.error('Failed to clone subjects', { error: error.message });
+    return sendError(res, 500, 'Failed to clone subjects');
+  }
+});
+
+/**
+ * @desc    Migrate subjects to next academic year
+ * @route    POST /api/v1/subjects/migrate
+ * @access   Private/School Admin
+ */
+const migrateSubjectsToNextYear = asyncHandler(async (req, res) => {
+  try {
+    const { sourceAcademicYearId, targetAcademicYearId } = req.body;
+
+    const subjects = await Subject.find({
+      academicYearId: sourceAcademicYearId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (subjects.length === 0) {
+      return sendError(res, 404, 'No subjects found in source year to migrate');
+    }
+
+    let migratedCount = 0;
+    for (const sub of subjects) {
+      const exists = await Subject.findOne({
+        code: sub.code,
+        classId: sub.classId,
+        academicYearId: targetAcademicYearId,
+        schoolId: req.user.schoolId,
+        isDeleted: { $ne: true }
+      });
+
+      if (!exists) {
+        const newSub = sub.toObject();
+        delete newSub._id;
+        delete newSub.createdAt;
+        delete newSub.updatedAt;
+        newSub.academicYearId = targetAcademicYearId;
+        newSub.teacherIds = [];
+        newSub.createdBy = req.user.userId;
+
+        await Subject.create(newSub);
+        migratedCount++;
+      }
+    }
+
+    return sendSuccess(res, 201, `Migrated ${migratedCount} subjects to new academic year`);
+
+  } catch (error) {
+    logger.error('Failed to migrate subjects', { error: error.message });
+    return sendError(res, 500, 'Failed to migrate subjects');
+  }
+});
+
+/**
  * @desc    Get optional subjects for a class
  * @route    GET /api/v1/subjects/optional/:classId
  * @access   Private/School Admin, Teacher
@@ -547,6 +772,22 @@ module.exports = {
   createSubject: [
     authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
     createSubject
+  ],
+  getAllSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_READ]),
+    getAllSubjects
+  ],
+  bulkCreateSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    bulkCreateSubjects
+  ],
+  cloneSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    cloneSubjects
+  ],
+  migrateSubjectsToNextYear: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    migrateSubjectsToNextYear
   ],
   getSubjectsByClass: [
     authorizePermissions([PERMISSIONS.SUBJECT_READ]),

@@ -24,7 +24,7 @@ const teacherPortalRoutes = require('./routes/teacherPortalRoutes');
 const studentPortalRoutes = require('./routes/studentPortalRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const teacherAssignmentRoutes = require('./routes/teacherAssignmentRoutes');
-const subjectRoutes = require('./routes/subjectRoutes');
+const subjectRoutes = require('./routes/enhancedSubjectRoutes');
 const classTeacherRoutes = require('./routes/classTeacherRoutes');
 // Phase 3 routes
 const academicYearRoutes = require('./routes/academicYearRoutes');

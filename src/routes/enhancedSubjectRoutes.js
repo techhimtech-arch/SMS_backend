@@ -2,13 +2,17 @@ const express = require('express');
 const router = express.Router();
 const {
   createSubject,
+  getAllSubjects,
   getSubjectsByClass,
   getSubjectsByTeacher,
   updateSubject,
   deleteSubject,
   assignTeacherToSubject,
   removeTeacherFromSubject,
-  getOptionalSubjects
+  getOptionalSubjects,
+  bulkCreateSubjects,
+  cloneSubjects,
+  migrateSubjectsToNextYear
 } = require('../controllers/enhancedSubjectController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -145,6 +149,103 @@ const authMiddleware = require('../middlewares/authMiddleware');
  *         description: Internal server error
  */
 router.post('/', authMiddleware, createSubject);
+
+/**
+ * @swagger
+ * /subjects:
+ *   get:
+ *     summary: Get all subjects for a school
+ *     tags: [Enhanced Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of subjects
+ */
+router.get('/', authMiddleware, getAllSubjects);
+
+/**
+ * @swagger
+ * /subjects/bulk:
+ *   post:
+ *     summary: Bulk create subjects for a class
+ *     tags: [Enhanced Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - classId
+ *               - academicYearId
+ *               - subjects
+ *             properties:
+ *               classId:
+ *                 type: string
+ *               academicYearId:
+ *                 type: string
+ *               subjects:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - name
+ *                     - code
+ *     responses:
+ *       201:
+ *         description: Subjects created successfully
+ */
+router.post('/bulk', authMiddleware, bulkCreateSubjects);
+
+/**
+ * @swagger
+ * /subjects/clone:
+ *   post:
+ *     summary: Clone subjects from one class to another
+ *     tags: [Enhanced Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - sourceClassId
+ *               - targetClassId
+ *               - academicYearId
+ *     responses:
+ *       201:
+ *         description: Subjects cloned successfully
+ */
+router.post('/clone', authMiddleware, cloneSubjects);
+
+/**
+ * @swagger
+ * /subjects/migrate:
+ *   post:
+ *     summary: Migrate subjects to next academic year
+ *     tags: [Enhanced Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - sourceAcademicYearId
+ *               - targetAcademicYearId
+ *     responses:
+ *       201:
+ *         description: Subjects migrated successfully
+ */
+router.post('/migrate', authMiddleware, migrateSubjectsToNextYear);
 
 /**
  * @swagger
