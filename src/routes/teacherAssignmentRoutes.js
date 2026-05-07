@@ -5,7 +5,8 @@ const {
   getAssignment,
   updateAssignment,
   deleteAssignment,
-  getAssignmentsByTeacher
+  getAssignmentsByTeacher,
+  getAssignmentsByClassAndSection
 } = require('../controllers/teacherAssignmentController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { authorizeRoles } = require('../middlewares/roleAuthorization');
@@ -151,6 +152,40 @@ router.get(
   authMiddleware,
   authorizeRoles('superadmin', 'school_admin'),
   getAssignmentsByTeacher
+);
+
+/**
+ * @swagger
+ * /teacher-assignments/class/{classId}/section/{sectionId}:
+ *   get:
+ *     summary: Get assignments for a specific class and section
+ *     tags: [TeacherAssignments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sectionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of assignments for the class/section
+ */
+router.get(
+  '/class/:classId/section/:sectionId',
+  authMiddleware,
+  authorizeRoles('superadmin', 'school_admin', 'teacher'),
+  getAssignmentsByClassAndSection
 );
 
 /**

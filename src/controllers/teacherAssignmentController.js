@@ -235,11 +235,42 @@ const getAssignmentsByTeacher = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Get assignments by class and section
+// @route   GET /api/v1/teacher-assignments/class/:classId/section/:sectionId
+// @access  Private (superadmin, school_admin, teacher)
+const getAssignmentsByClassAndSection = asyncHandler(async (req, res, next) => {
+  const { schoolId } = req.user;
+  const { classId, sectionId } = req.params;
+  const { academicYearId } = req.query;
+
+  const query = {
+    classId: new mongoose.Types.ObjectId(classId),
+    sectionId: new mongoose.Types.ObjectId(sectionId),
+    schoolId: new mongoose.Types.ObjectId(schoolId),
+    isActive: true
+  };
+
+  if (academicYearId) {
+    query.academicYearId = new mongoose.Types.ObjectId(academicYearId);
+  }
+
+  const assignments = await TeacherAssignment.find(query)
+    .populate('teacherId', 'name email')
+    .populate('subjectId', 'name code department');
+
+  res.status(200).json({
+    success: true,
+    count: assignments.length,
+    data: assignments
+  });
+});
+
 module.exports = {
   createAssignment,
   getAssignments,
   getAssignment,
   updateAssignment,
   deleteAssignment,
-  getAssignmentsByTeacher
+  getAssignmentsByTeacher,
+  getAssignmentsByClassAndSection
 };

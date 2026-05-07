@@ -252,22 +252,25 @@ timetableSchema.statics.getWeeklyTimetable = function(classId, sectionId, academ
       }
     },
     {
-      $sort: { 
-        '_id': { 
+      $addFields: {
+        dayOrder: {
           $switch: {
             branches: [
-              { case: 'MONDAY', then: 1 },
-              { case: 'TUESDAY', then: 2 },
-              { case: 'WEDNESDAY', then: 3 },
-              { case: 'THURSDAY', then: 4 },
-              { case: 'FRIDAY', then: 5 },
-              { case: 'SATURDAY', then: 6 },
-              { case: 'SUNDAY', then: 7 }
+              { case: { $eq: ['$day', 'MONDAY'] }, then: 1 },
+              { case: { $eq: ['$day', 'TUESDAY'] }, then: 2 },
+              { case: { $eq: ['$day', 'WEDNESDAY'] }, then: 3 },
+              { case: { $eq: ['$day', 'THURSDAY'] }, then: 4 },
+              { case: { $eq: ['$day', 'FRIDAY'] }, then: 5 },
+              { case: { $eq: ['$day', 'SATURDAY'] }, then: 6 },
+              { case: { $eq: ['$day', 'SUNDAY'] }, then: 7 }
             ],
             default: 8
           }
         }
       }
+    },
+    {
+      $sort: { dayOrder: 1, periodNumber: 1 }
     }
   ]);
 };

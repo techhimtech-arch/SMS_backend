@@ -53,6 +53,8 @@ const studentQuizRoutes = require('./routes/studentQuizRoutes');
 const adminQuizRoutes = require('./routes/adminQuizRoutes');
 // Student remarks system routes
 const studentRemarkRoutes = require('./routes/studentRemarkRoutes');
+const timetablePeriodRoutes = require('./routes/timetablePeriodRoutes');
+
 
 // Middleware imports
 const { globalLimiter, authLimiter } = require('./middlewares/rateLimiter');
@@ -207,6 +209,8 @@ app.use('/api/v1/student/quizzes', studentQuizRoutes);
 app.use('/api/v1/admin/quizzes', adminQuizRoutes);
 // Student remarks system routes
 app.use('/api/v1/student-remarks', studentRemarkRoutes);
+app.use('/api/v1/timetable-periods', timetablePeriodRoutes);
+
 
 // ===========================================
 // ERROR HANDLING

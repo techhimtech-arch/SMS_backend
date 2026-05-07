@@ -429,7 +429,23 @@ const deleteSubject = asyncHandler(async (req, res) => {
 const assignTeacherToSubject = asyncHandler(async (req, res) => {
   try {
     const { subjectId } = req.params;
-    const { teacherId, sectionId, role = 'PRIMARY_TEACHER' } = req.body;
+    let { teacherId, sectionId, role = 'PRIMARY_TEACHER' } = req.body;
+
+    // Normalize role if simplified version is sent from frontend
+    const roleMap = {
+      'primary': 'PRIMARY_TEACHER',
+      'assistant': 'ASSISTANT_TEACHER',
+      'substitute': 'SUBSTITUTE_TEACHER'
+    };
+    
+    if (roleMap[role.toLowerCase()]) {
+      role = roleMap[role.toLowerCase()];
+    }
+
+    // Explicit validation for sectionId as it's required by the model
+    if (!sectionId) {
+      return sendError(res, 400, 'Section ID is required for teacher assignment');
+    }
 
     // Validate subject exists
     const subject = await Subject.findOne({
@@ -447,7 +463,7 @@ const assignTeacherToSubject = asyncHandler(async (req, res) => {
       teacherId,
       subjectId,
       classId: subject.classId,
-      sectionId: sectionId || null,
+      sectionId,
       academicYearId: subject.academicYearId,
       schoolId: req.user.schoolId,
       isActive: true,
@@ -455,7 +471,7 @@ const assignTeacherToSubject = asyncHandler(async (req, res) => {
     });
 
     if (existingAssignment) {
-      return sendError(res, 400, 'Teacher is already assigned to this subject');
+      return sendError(res, 400, 'Teacher is already assigned to this subject in this section');
     }
 
     // Create assignment
