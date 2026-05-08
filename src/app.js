@@ -4,19 +4,18 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
 const requestIdMiddleware = require('./middlewares/requestId');
-const requestLogger = require('./middleware/requestLogger');
+const requestLogger = require('./middlewares/requestLogger');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/improvedUserRoutes');
+const userRoutes = require('./routes/userRoutes');
 const classRoutes = require('./routes/classRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const admissionRoutes = require('./routes/admissionRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const enrollmentAttendanceRoutes = require('./routes/enrollmentAttendanceRoutes');
-const feesRoutes = require('./routes/feesRoutes');
-const examsResultsRoutes = require('./routes/examsResultsRoutes');
+const feeRoutes = require('./routes/feeRoutes');
 const parentRoutes = require('./routes/parentRoutes');
 const parentPortalRoutes = require('./routes/parentPortalRoutes');
 const parentLinkingRoutes = require('./routes/parentLinkingRoutes');
@@ -24,7 +23,7 @@ const teacherPortalRoutes = require('./routes/teacherPortalRoutes');
 const studentPortalRoutes = require('./routes/studentPortalRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const teacherAssignmentRoutes = require('./routes/teacherAssignmentRoutes');
-const subjectRoutes = require('./routes/enhancedSubjectRoutes');
+const subjectRoutes = require('./routes/subjectRoutes');
 const classTeacherRoutes = require('./routes/classTeacherRoutes');
 // Phase 3 routes
 const academicYearRoutes = require('./routes/academicYearRoutes');
@@ -42,9 +41,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
 // Bulk admission system routes
 const bulkAdmissionRoutes = require('./routes/bulkAdmissionRoutes');
-// Exam System refactored routes
-const refactoredExamRoutes = require('./routes/refactoredExamRoutes');
-const feeRoutes = require('./routes/feeRoutes');
+const examRoutes = require('./routes/examRoutes');
 // Timetable routes
 const timetableRoutes = require('./routes/timetableRoutes');
 // Quiz system routes
@@ -181,8 +178,8 @@ app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/admission', admissionRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/attendance/enrollments', enrollmentAttendanceRoutes);
-app.use('/api/v1/fees', feesRoutes);
-app.use('/api/v1', refactoredExamRoutes); // Overrides exams, marks, results to our new architecture
+app.use('/api/v1/fees', feeRoutes);
+app.use('/api/v1/exams', examRoutes);
 app.use('/api/v1/timetable', timetableRoutes);
 app.use('/api/v1/parents', parentRoutes);
 app.use('/api/v1/parent', parentPortalRoutes);

@@ -1,212 +1,836 @@
+const asyncHandler = require('express-async-handler');
 const Subject = require('../models/Subject');
+const TeacherSubjectAssignment = require('../models/TeacherSubjectAssignment');
 const Class = require('../models/Class');
-const TeacherAssignment = require('../models/TeacherAssignment');
-const ClassTeacherAssignment = require('../models/ClassTeacherAssignment');
+const logger = require('../utils/logger');
+const { sendSuccess, sendError, sendPaginatedResponse } = require('../utils/response');
+const { getPaginatedResults, buildSearchFilter } = require('../utils/pagination');
+const { authorizePermissions } = require('../middlewares/roleAuthorization');
+const { PERMISSIONS } = require('../utils/rbac');
 
-// Create a new subject
-const createSubject = async (req, res) => {
+/**
+ * @desc    Get all subjects for a school
+ * @route    GET /api/v1/subjects
+ * @access   Private/School Admin, Teacher, Accountant
+ */
+const getAllSubjects = asyncHandler(async (req, res) => {
   try {
-    const { name, classId, code, academicYearId, description, department, credits, weeklyHours, isOptional } = req.body;
-    const schoolId = req.user.schoolId;
+    const { academicYearId, classId, search, status } = req.query;
 
-    // Check if class exists and belongs to the school
-    const classExists = await Class.findOne({ _id: classId, schoolId, isActive: true });
-    if (!classExists) {
-      return res.status(404).json({ success: false, message: 'Class not found' });
+    let filter = {
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    };
+
+    if (academicYearId) filter.academicYearId = academicYearId;
+    if (classId) filter.classId = classId;
+    if (status) filter.status = status.toUpperCase();
+
+    if (search) {
+      filter = buildSearchFilter(filter, search, ['name', 'code', 'description']);
     }
 
-    // Check if subject already exists for this class
-    const existingSubject = await Subject.findOne({ name, classId, schoolId, isActive: true });
-    if (existingSubject) {
-      return res.status(400).json({ success: false, message: 'Subject already exists for this class' });
-    }
+    const { data, pagination } = await getPaginatedResults(
+      Subject,
+      filter,
+      req.query,
+      {
+        sort: { name: 1 },
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'teacherIds', select: 'name' }
+        ]
+      }
+    );
 
-    const subject = new Subject({ 
-      name, 
-      classId, 
-      schoolId,
+    return sendPaginatedResponse(res, 'Subjects retrieved successfully', data, pagination);
+  } catch (error) {
+    logger.error('Failed to get all subjects', { error: error.message });
+    return sendError(res, 500, 'Failed to get subjects');
+  }
+});
+
+/**
+ * @desc    Create new subject
+ * @route    POST /api/v1/subjects
+ * @access   Private/School Admin
+ */
+const createSubject = asyncHandler(async (req, res) => {
+  try {
+    const {
+      name,
       code,
-      academicYearId,
       description,
+      classId,
       department,
+      academicYearId,
+      teacherIds = [],
+      isOptional = false,
+      status = 'ACTIVE',
+      credits = 1,
+      weeklyHours = 1,
+      prerequisites = []
+    } = req.body;
+
+    // Validate class exists and belongs to school
+    const classExists = await Class.findOne({
+      _id: classId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (!classExists) {
+      return sendError(res, 400, 'Invalid class ID or class not found');
+    }
+
+    // Check if subject code already exists in same class and session
+    const existingSubject = await Subject.findOne({
+      code: code.toUpperCase(),
+      classId,
+      academicYearId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (existingSubject) {
+      return sendError(res, 400, `Subject code '${code}' already exists in this class for this session`);
+    }
+
+    // Create subject
+    const subject = await Subject.create({
+      name: name.trim(),
+      code: code.toUpperCase(),
+      description: description?.trim(),
+      classId,
+      department,
+      academicYearId,
+      teacherIds,
+      isOptional,
+      status,
       credits,
       weeklyHours,
-      isOptional
+      prerequisites,
+      schoolId: req.user.schoolId,
+      createdBy: req.user.userId
     });
-    await subject.save();
 
-    res.status(201).json({
-      success: true,
-      message: 'Subject created successfully',
-      data: subject,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
+    // Update subject with teacher assignments if provided
+    if (teacherIds.length > 0) {
+      const assignments = teacherIds.map(teacherId => ({
+        teacherId,
+        subjectId: subject._id,
+        classId,
+        sectionId: null, // Will be assigned later
+        academicYearId,
+        schoolId: req.user.schoolId,
+        createdBy: req.user.userId
+      }));
 
-// Get all subjects based on user role
-const getSubjects = async (req, res) => {
-  try {
-    const { role } = req.user;
-    const schoolId = req.user.schoolId;
-    let subjects;
-
-    switch (role) {
-      case 'school_admin':
-        // Admin sees all subjects for the school
-        subjects = await Subject.find({ schoolId, isActive: true })
-          .populate('classId', 'name')
-          .sort({ classId: 1, name: 1 });
-        break;
-
-      case 'teacher':
-        // Teacher sees only subjects for their assigned classes
-        const teacherAssignments = await TeacherAssignment.find({ 
-          teacherId: req.user._id, 
-          schoolId, 
-          isActive: true 
-        }).distinct('classId');
-        
-        const classTeacherAssignments = await ClassTeacherAssignment.find({ 
-          teacherId: req.user._id, 
-          schoolId, 
-          isActive: true 
-        }).distinct('classId');
-
-        // Combine both types of assignments
-        const assignedClassIds = [...new Set([...teacherAssignments, ...classTeacherAssignments])];
-        
-        if (assignedClassIds.length === 0) {
-          return res.status(200).json({
-            success: true,
-            count: 0,
-            data: [],
-            message: 'No classes assigned to this teacher'
-          });
-        }
-
-        subjects = await Subject.find({ 
-          classId: { $in: assignedClassIds }, 
-          schoolId, 
-          isActive: true 
-        })
-          .populate('classId', 'name')
-          .sort({ classId: 1, name: 1 });
-        break;
-
-      case 'accountant':
-        // Accountant sees subjects with fee-related info (if needed in future)
-        // For now, same as admin but can be customized
-        subjects = await Subject.find({ schoolId, isActive: true })
-          .populate('classId', 'name')
-          .sort({ classId: 1, name: 1 });
-        break;
-
-      default:
-        return res.status(403).json({
-          success: false,
-          message: 'Access forbidden: Your role is not authorized to view subjects'
-        });
+      await TeacherSubjectAssignment.insertMany(assignments);
     }
 
-    res.status(200).json({
-      success: true,
-      count: subjects.length,
-      data: subjects,
-      role: role, // Include role info for frontend reference
+    logger.info('Subject created successfully', {
+      subjectId: subject._id,
+      subjectCode: subject.code,
+      classId,
+      createdBy: req.user.userId
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
 
-// Get subjects by classId
-const getSubjectsByClass = async (req, res) => {
+    return sendSuccess(res, 201, 'Subject created successfully', subject);
+
+  } catch (error) {
+    logger.error('Failed to create subject', {
+      error: error.message,
+      userId: req.user.userId,
+      schoolId: req.user.schoolId
+    });
+
+    return sendError(res, 500, 'Failed to create subject');
+  }
+});
+
+/**
+ * @desc    Get subjects by class
+ * @route    GET /api/v1/subjects/class/:classId
+ * @access   Private/School Admin, Teacher
+ */
+const getSubjectsByClass = asyncHandler(async (req, res) => {
   try {
     const { classId } = req.params;
-    const schoolId = req.user.schoolId;
+    const { academicYearId, search, status, department } = req.query;
 
-    const subjects = await Subject.find({ classId, schoolId, isActive: true })
-      .populate('classId', 'name')
-      .sort({ name: 1 });
+    // Build filter
+    let filter = {
+      classId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    };
 
-    res.status(200).json({
-      success: true,
-      count: subjects.length,
-      data: subjects,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
-
-// Update a subject
-const updateSubject = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name } = req.body;
-    const schoolId = req.user.schoolId;
-
-    const subject = await Subject.findOne({ _id: id, schoolId, isActive: true });
-    if (!subject) {
-      return res.status(404).json({ success: false, message: 'Subject not found' });
+    if (academicYearId) {
+      filter.academicYearId = academicYearId;
     }
 
-    // Check if new name conflicts with existing subject
-    if (name && name !== subject.name) {
-      const existingSubject = await Subject.findOne({
-        name,
-        classId: subject.classId,
-        schoolId,
-        isActive: true,
-        _id: { $ne: id },
-      });
-      if (existingSubject) {
-        return res.status(400).json({ success: false, message: 'Subject with this name already exists for this class' });
+    if (status) {
+      filter.status = status.toUpperCase();
+    }
+
+    if (department) {
+      filter.department = department.toUpperCase();
+    }
+
+    // Add search filter
+    if (search) {
+      filter = buildSearchFilter(filter, search, ['name', 'code', 'description']);
+    }
+
+    // Get paginated results
+    const { data, pagination } = await getPaginatedResults(
+      Subject,
+      filter,
+      req.query,
+      {
+        sort: { name: 1 },
+        populate: [
+          { path: 'teacherIds', select: 'name email' },
+          { path: 'classId', select: 'name' }
+        ]
       }
-      subject.name = name;
+    );
+
+    return sendPaginatedResponse(res, 'Subjects retrieved successfully', data, pagination);
+
+  } catch (error) {
+    logger.error('Failed to get subjects by class', {
+      error: error.message,
+      classId: req.params.classId,
+      userId: req.user.userId
+    });
+
+    return sendError(res, 500, 'Failed to get subjects');
+  }
+});
+
+/**
+ * @desc    Get subjects by teacher
+ * @route    GET /api/v1/subjects/teacher/:teacherId
+ * @access   Private/School Admin, Teacher (own subjects)
+ */
+const getSubjectsByTeacher = asyncHandler(async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const { academicYearId, search } = req.query;
+
+    // Check authorization (teacher can only view own subjects)
+    if (req.user.role === 'teacher' && teacherId !== req.user.userId) {
+      return sendError(res, 403, 'You can only view your own subjects');
     }
 
-    await subject.save();
+    // Build filter
+    let filter = {
+      teacherIds: teacherId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    };
 
-    res.status(200).json({
-      success: true,
-      message: 'Subject updated successfully',
-      data: subject,
-    });
+    if (academicYearId) {
+      filter.academicYearId = academicYearId;
+    }
+
+    // Add search filter
+    if (search) {
+      filter = buildSearchFilter(filter, search, ['name', 'code', 'description']);
+    }
+
+    // Get paginated results
+    const { data, pagination } = await getPaginatedResults(
+      Subject,
+      filter,
+      req.query,
+      {
+        sort: { name: 1 },
+        populate: [
+          { path: 'classId', select: 'name' }
+        ]
+      }
+    );
+
+    return sendPaginatedResponse(res, 'Teacher subjects retrieved successfully', data, pagination);
+
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
+    logger.error('Failed to get subjects by teacher', {
+      error: error.message,
+      teacherId: req.params.teacherId,
+      userId: req.user.userId
+    });
 
-// Soft delete a subject
-const deleteSubject = async (req, res) => {
+    return sendError(res, 500, 'Failed to get subjects');
+  }
+});
+
+/**
+ * @desc    Update subject
+ * @route    PUT /api/v1/subjects/:id
+ * @access   Private/School Admin
+ */
+const updateSubject = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
-    const schoolId = req.user.schoolId;
+    const updateData = req.body;
 
-    const subject = await Subject.findOne({ _id: id, schoolId, isActive: true });
+    const subject = await Subject.findOne({
+      _id: id,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
     if (!subject) {
-      return res.status(404).json({ success: false, message: 'Subject not found' });
+      return sendError(res, 404, 'Subject not found');
     }
 
-    subject.isActive = false;
+    // Check if code is being changed and if it conflicts
+    if (updateData.code && updateData.code !== subject.code) {
+      const existingSubject = await Subject.findOne({
+        code: updateData.code.toUpperCase(),
+        classId: subject.classId,
+        academicYearId: subject.academicYearId,
+        schoolId: req.user.schoolId,
+        _id: { $ne: id },
+        isDeleted: { $ne: true }
+      });
+
+      if (existingSubject) {
+        return sendError(res, 400, `Subject code '${updateData.code}' already exists in this class for this session`);
+      }
+    }
+
+    // Prepare update data
+    const allowedUpdates = [
+      'name', 'code', 'description', 'department', 'isOptional', 
+      'status', 'credits', 'weeklyHours', 'prerequisites'
+    ];
+
+    const updateObj = { updatedBy: req.user.userId };
+    allowedUpdates.forEach(field => {
+      if (updateData[field] !== undefined) {
+        if (field === 'code') {
+          updateObj[field] = updateData[field].toUpperCase();
+        } else {
+          updateObj[field] = updateData[field];
+        }
+      }
+    });
+
+    const updatedSubject = await Subject.findByIdAndUpdate(
+      id,
+      updateObj,
+      { new: true, runValidators: true }
+    );
+
+    // Update teacher assignments if provided
+    if (updateData.teacherIds && Array.isArray(updateData.teacherIds)) {
+      // Remove existing assignments
+      await TeacherSubjectAssignment.deleteMany({
+        subjectId: id,
+        schoolId: req.user.schoolId
+      });
+
+      // Create new assignments
+      if (updateData.teacherIds.length > 0) {
+        const assignments = updateData.teacherIds.map(teacherId => ({
+          teacherId,
+          subjectId: id,
+          classId: subject.classId,
+          sectionId: null,
+          academicYearId: subject.academicYearId,
+          schoolId: req.user.schoolId,
+          createdBy: req.user.userId
+        }));
+
+        await TeacherSubjectAssignment.insertMany(assignments);
+      }
+    }
+
+    logger.info('Subject updated successfully', {
+      subjectId: id,
+      updatedFields: Object.keys(updateObj),
+      updatedBy: req.user.userId
+    });
+
+    return sendSuccess(res, 200, 'Subject updated successfully', updatedSubject);
+
+  } catch (error) {
+    logger.error('Failed to update subject', {
+      error: error.message,
+      subjectId: req.params.id,
+      userId: req.user.userId
+    });
+
+    return sendError(res, 500, 'Failed to update subject');
+  }
+});
+
+/**
+ * @desc    Delete subject (soft delete)
+ * @route    DELETE /api/v1/subjects/:id
+ * @access   Private/School Admin
+ */
+const deleteSubject = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const subject = await Subject.findOne({
+      _id: id,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (!subject) {
+      return sendError(res, 404, 'Subject not found');
+    }
+
+    // Soft delete subject
+    subject.isDeleted = true;
+    subject.deletedAt = new Date();
+    subject.deletedBy = req.user.userId;
     await subject.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Subject deleted successfully',
+    // Remove related teacher assignments
+    await TeacherSubjectAssignment.updateMany(
+      { subjectId: id, schoolId: req.user.schoolId },
+      { 
+        isActive: false,
+        updatedBy: req.user.userId
+      }
+    );
+
+    logger.info('Subject deleted successfully', {
+      subjectId: id,
+      deletedBy: req.user.userId
     });
+
+    return sendSuccess(res, 200, 'Subject deleted successfully');
+
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    logger.error('Failed to delete subject', {
+      error: error.message,
+      subjectId: req.params.id,
+      userId: req.user.userId
+    });
+
+    return sendError(res, 500, 'Failed to delete subject');
   }
-};
+});
+
+/**
+ * @desc    Assign teacher to subject
+ * @route    POST /api/v1/subjects/:subjectId/assign-teacher
+ * @access   Private/School Admin
+ */
+const assignTeacherToSubject = asyncHandler(async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    let { teacherId, sectionId, role = 'PRIMARY_TEACHER' } = req.body;
+
+    // Normalize role if simplified version is sent from frontend
+    const roleMap = {
+      'primary': 'PRIMARY_TEACHER',
+      'assistant': 'ASSISTANT_TEACHER',
+      'substitute': 'SUBSTITUTE_TEACHER'
+    };
+    
+    if (roleMap[role.toLowerCase()]) {
+      role = roleMap[role.toLowerCase()];
+    }
+
+    // Explicit validation for sectionId as it's required by the model
+    if (!sectionId) {
+      return sendError(res, 400, 'Section ID is required for teacher assignment');
+    }
+
+    // Validate subject exists
+    const subject = await Subject.findOne({
+      _id: subjectId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (!subject) {
+      return sendError(res, 404, 'Subject not found');
+    }
+
+    // Check if assignment already exists
+    const existingAssignment = await TeacherSubjectAssignment.findOne({
+      teacherId,
+      subjectId,
+      classId: subject.classId,
+      sectionId,
+      academicYearId: subject.academicYearId,
+      schoolId: req.user.schoolId,
+      isActive: true,
+      isDeleted: { $ne: true }
+    });
+
+    if (existingAssignment) {
+      return sendError(res, 400, 'Teacher is already assigned to this subject in this section');
+    }
+
+    // Create assignment
+    const assignment = await TeacherSubjectAssignment.create({
+      teacherId,
+      subjectId,
+      classId: subject.classId,
+      sectionId,
+      academicYearId: subject.academicYearId,
+      role,
+      schoolId: req.user.schoolId,
+      createdBy: req.user.userId
+    });
+
+    // Add teacher to subject's teacherIds array
+    await Subject.findByIdAndUpdate(
+      subjectId,
+      { 
+        $addToSet: { teacherIds: teacherId },
+        updatedBy: req.user.userId
+      }
+    );
+
+    logger.info('Teacher assigned to subject successfully', {
+      assignmentId: assignment._id,
+      teacherId,
+      subjectId,
+      assignedBy: req.user.userId
+    });
+
+    return sendSuccess(res, 201, 'Teacher assigned to subject successfully', assignment);
+
+  } catch (error) {
+    logger.error('Failed to assign teacher to subject', {
+      error: error.message,
+      subjectId: req.params.subjectId,
+      userId: req.user.userId
+    });
+
+    return sendError(res, 500, 'Failed to assign teacher to subject');
+  }
+});
+
+/**
+ * @desc    Remove teacher assignment
+ * @route    DELETE /api/v1/subjects/:subjectId/remove-teacher/:teacherId
+ * @access   Private/School Admin
+ */
+const removeTeacherFromSubject = asyncHandler(async (req, res) => {
+  try {
+    const { subjectId, teacherId } = req.params;
+
+    // Find and deactivate assignment
+    const assignment = await TeacherSubjectAssignment.findOne({
+      teacherId,
+      subjectId,
+      schoolId: req.user.schoolId,
+      isActive: true,
+      isDeleted: { $ne: true }
+    });
+
+    if (!assignment) {
+      return sendError(res, 404, 'Assignment not found');
+    }
+
+    // Deactivate assignment
+    assignment.isActive = false;
+    assignment.updatedBy = req.user.userId;
+    await assignment.save();
+
+    // Remove teacher from subject's teacherIds array
+    await Subject.findByIdAndUpdate(
+      subjectId,
+      { 
+        $pull: { teacherIds: teacherId },
+        updatedBy: req.user.userId
+      }
+    );
+
+    logger.info('Teacher removed from subject successfully', {
+      assignmentId: assignment._id,
+      teacherId,
+      subjectId,
+      removedBy: req.user.userId
+    });
+
+    return sendSuccess(res, 200, 'Teacher removed from subject successfully');
+
+  } catch (error) {
+    logger.error('Failed to remove teacher from subject', {
+      error: error.message,
+      subjectId: req.params.subjectId,
+      teacherId: req.params.teacherId,
+      userId: req.user.userId
+    });
+
+    return sendError(res, 500, 'Failed to remove teacher from subject');
+  }
+});
+
+/**
+ * @desc    Bulk create subjects for a class
+ * @route    POST /api/v1/subjects/bulk
+ * @access   Private/School Admin
+ */
+const bulkCreateSubjects = asyncHandler(async (req, res) => {
+  try {
+    const { classId, academicYearId, subjects } = req.body;
+
+    if (!Array.isArray(subjects) || subjects.length === 0) {
+      return sendError(res, 400, 'Please provide an array of subjects');
+    }
+
+    // Validate class exists
+    const classExists = await Class.findOne({
+      _id: classId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (!classExists) {
+      return sendError(res, 400, 'Invalid class ID or class not found');
+    }
+
+    const createdSubjects = [];
+    const errors = [];
+
+    for (const sub of subjects) {
+      try {
+        // Check if subject code already exists
+        const existingSubject = await Subject.findOne({
+          code: sub.code.toUpperCase(),
+          classId,
+          academicYearId,
+          schoolId: req.user.schoolId,
+          isDeleted: { $ne: true }
+        });
+
+        if (existingSubject) {
+          errors.push({ code: sub.code, error: 'Subject code already exists in this class' });
+          continue;
+        }
+
+        const subject = await Subject.create({
+          ...sub,
+          code: sub.code.toUpperCase(),
+          classId,
+          academicYearId,
+          schoolId: req.user.schoolId,
+          createdBy: req.user.userId
+        });
+        createdSubjects.push(subject);
+      } catch (err) {
+        errors.push({ code: sub.code, error: err.message });
+      }
+    }
+
+    logger.info('Bulk subjects created', {
+      count: createdSubjects.length,
+      errors: errors.length,
+      classId,
+      schoolId: req.user.schoolId
+    });
+
+    return sendSuccess(res, 201, `Created ${createdSubjects.length} subjects. ${errors.length} errors.`, {
+      created: createdSubjects,
+      errors
+    });
+
+  } catch (error) {
+    logger.error('Failed to bulk create subjects', {
+      error: error.message,
+      userId: req.user.userId
+    });
+    return sendError(res, 500, 'Failed to bulk create subjects');
+  }
+});
+
+/**
+ * @desc    Clone subjects from one class to another
+ * @route    POST /api/v1/subjects/clone
+ * @access   Private/School Admin
+ */
+const cloneSubjects = asyncHandler(async (req, res) => {
+  try {
+    const { sourceClassId, targetClassId, academicYearId } = req.body;
+
+    // Get source subjects
+    const sourceSubjects = await Subject.find({
+      classId: sourceClassId,
+      academicYearId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (sourceSubjects.length === 0) {
+      return sendError(res, 404, 'No subjects found in source class to clone');
+    }
+
+    const clonedSubjects = [];
+    for (const sub of sourceSubjects) {
+      // Check if already exists in target
+      const exists = await Subject.findOne({
+        code: sub.code,
+        classId: targetClassId,
+        academicYearId,
+        schoolId: req.user.schoolId,
+        isDeleted: { $ne: true }
+      });
+
+      if (!exists) {
+        const newSub = sub.toObject();
+        delete newSub._id;
+        delete newSub.createdAt;
+        delete newSub.updatedAt;
+        newSub.classId = targetClassId;
+        newSub.teacherIds = []; // Don't clone teacher assignments by default
+        newSub.createdBy = req.user.userId;
+
+        const created = await Subject.create(newSub);
+        clonedSubjects.push(created);
+      }
+    }
+
+    return sendSuccess(res, 201, `Cloned ${clonedSubjects.length} subjects to target class`, clonedSubjects);
+
+  } catch (error) {
+    logger.error('Failed to clone subjects', { error: error.message });
+    return sendError(res, 500, 'Failed to clone subjects');
+  }
+});
+
+/**
+ * @desc    Migrate subjects to next academic year
+ * @route    POST /api/v1/subjects/migrate
+ * @access   Private/School Admin
+ */
+const migrateSubjectsToNextYear = asyncHandler(async (req, res) => {
+  try {
+    const { sourceAcademicYearId, targetAcademicYearId } = req.body;
+
+    const subjects = await Subject.find({
+      academicYearId: sourceAcademicYearId,
+      schoolId: req.user.schoolId,
+      isDeleted: { $ne: true }
+    });
+
+    if (subjects.length === 0) {
+      return sendError(res, 404, 'No subjects found in source year to migrate');
+    }
+
+    let migratedCount = 0;
+    for (const sub of subjects) {
+      const exists = await Subject.findOne({
+        code: sub.code,
+        classId: sub.classId,
+        academicYearId: targetAcademicYearId,
+        schoolId: req.user.schoolId,
+        isDeleted: { $ne: true }
+      });
+
+      if (!exists) {
+        const newSub = sub.toObject();
+        delete newSub._id;
+        delete newSub.createdAt;
+        delete newSub.updatedAt;
+        newSub.academicYearId = targetAcademicYearId;
+        newSub.teacherIds = [];
+        newSub.createdBy = req.user.userId;
+
+        await Subject.create(newSub);
+        migratedCount++;
+      }
+    }
+
+    return sendSuccess(res, 201, `Migrated ${migratedCount} subjects to new academic year`);
+
+  } catch (error) {
+    logger.error('Failed to migrate subjects', { error: error.message });
+    return sendError(res, 500, 'Failed to migrate subjects');
+  }
+});
+
+/**
+ * @desc    Get optional subjects for a class
+ * @route    GET /api/v1/subjects/optional/:classId
+ * @access   Private/School Admin, Teacher
+ */
+const getOptionalSubjects = asyncHandler(async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { academicYearId } = req.query;
+
+    const subjects = await Subject.findOptionalSubjects(
+      classId,
+      academicYearId,
+      req.user.schoolId
+    );
+
+    return sendSuccess(res, 200, 'Optional subjects retrieved successfully', subjects);
+
+  } catch (error) {
+    logger.error('Failed to get optional subjects', {
+      error: error.message,
+      classId: req.params.classId,
+      userId: req.user.userId
+    });
+
+    return sendError(res, 500, 'Failed to get optional subjects');
+  }
+});
 
 module.exports = {
-  createSubject,
-  getSubjects,
-  getSubjectsByClass,
-  updateSubject,
-  deleteSubject,
+  createSubject: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    createSubject
+  ],
+  getAllSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_READ]),
+    getAllSubjects
+  ],
+  bulkCreateSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    bulkCreateSubjects
+  ],
+  cloneSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    cloneSubjects
+  ],
+  migrateSubjectsToNextYear: [
+    authorizePermissions([PERMISSIONS.SUBJECT_CREATE]),
+    migrateSubjectsToNextYear
+  ],
+  getSubjectsByClass: [
+    authorizePermissions([PERMISSIONS.SUBJECT_READ]),
+    getSubjectsByClass
+  ],
+  getSubjectsByTeacher: [
+    authorizePermissions([PERMISSIONS.SUBJECT_READ]),
+    getSubjectsByTeacher
+  ],
+  updateSubject: [
+    authorizePermissions([PERMISSIONS.SUBJECT_UPDATE]),
+    updateSubject
+  ],
+  deleteSubject: [
+    authorizePermissions([PERMISSIONS.SUBJECT_DELETE]),
+    deleteSubject
+  ],
+  assignTeacherToSubject: [
+    authorizePermissions([PERMISSIONS.SUBJECT_UPDATE]),
+    assignTeacherToSubject
+  ],
+  removeTeacherFromSubject: [
+    authorizePermissions([PERMISSIONS.SUBJECT_UPDATE]),
+    removeTeacherFromSubject
+  ],
+  getOptionalSubjects: [
+    authorizePermissions([PERMISSIONS.SUBJECT_READ]),
+    getOptionalSubjects
+  ]
 };

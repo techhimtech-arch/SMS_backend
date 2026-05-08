@@ -1,21 +1,26 @@
 const express = require('express');
+const router = express.Router();
 const {
   createSubject,
-  getSubjects,
+  getAllSubjects,
   getSubjectsByClass,
+  getSubjectsByTeacher,
   updateSubject,
   deleteSubject,
+  assignTeacherToSubject,
+  removeTeacherFromSubject,
+  getOptionalSubjects,
+  bulkCreateSubjects,
+  cloneSubjects,
+  migrateSubjectsToNextYear
 } = require('../controllers/subjectController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { authorizeRoles } = require('../middlewares/roleAuthorization');
-
-const router = express.Router();
 
 /**
  * @swagger
  * tags:
  *   name: Subjects
- *   description: Subject management for school admins
+ *   description: Academic subject management with teacher assignments
  */
 
 /**
@@ -34,31 +39,29 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
+ *               - code
  *               - classId
+ *               - academicYearId
  *             properties:
  *               name:
  *                 type: string
- *                 description: Name of the subject
- *                 example: Mathematics
+ *               code:
+ *                 type: string
  *               classId:
  *                 type: string
- *                 description: ID of the class this subject belongs to
- *                 example: 60d5ecb54b24a1234567890a
+ *               academicYearId:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Subject created successfully
- *       400:
- *         description: Subject already exists for this class
- *       404:
- *         description: Class not found
  */
-router.post('/', authMiddleware, authorizeRoles('school_admin'), createSubject);
+router.post('/', authMiddleware, createSubject);
 
 /**
  * @swagger
  * /subjects:
  *   get:
- *     summary: Get all subjects for the logged-in school
+ *     summary: Get all subjects for a school
  *     tags: [Subjects]
  *     security:
  *       - bearerAuth: []
@@ -66,13 +69,55 @@ router.post('/', authMiddleware, authorizeRoles('school_admin'), createSubject);
  *       200:
  *         description: List of subjects
  */
-router.get('/', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getSubjects);
+router.get('/', authMiddleware, getAllSubjects);
+
+/**
+ * @swagger
+ * /subjects/bulk:
+ *   post:
+ *     summary: Bulk create subjects for a class
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Subjects created successfully
+ */
+router.post('/bulk', authMiddleware, bulkCreateSubjects);
+
+/**
+ * @swagger
+ * /subjects/clone:
+ *   post:
+ *     summary: Clone subjects from one class to another
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Subjects cloned successfully
+ */
+router.post('/clone', authMiddleware, cloneSubjects);
+
+/**
+ * @swagger
+ * /subjects/migrate:
+ *   post:
+ *     summary: Migrate subjects to next academic year
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Subjects migrated successfully
+ */
+router.post('/migrate', authMiddleware, migrateSubjectsToNextYear);
 
 /**
  * @swagger
  * /subjects/class/{classId}:
  *   get:
- *     summary: Get subjects for a specific class
+ *     summary: Get subjects by class
  *     tags: [Subjects]
  *     security:
  *       - bearerAuth: []
@@ -82,18 +127,37 @@ router.get('/', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accou
  *         required: true
  *         schema:
  *           type: string
- *         description: Class ID
  *     responses:
  *       200:
- *         description: List of subjects for the class
+ *         description: Subjects retrieved successfully
  */
-router.get('/class/:classId', authMiddleware, authorizeRoles('school_admin'), getSubjectsByClass);
+router.get('/class/:classId', authMiddleware, getSubjectsByClass);
+
+/**
+ * @swagger
+ * /subjects/teacher/{teacherId}:
+ *   get:
+ *     summary: Get subjects assigned to a teacher
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teacherId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Teacher subjects retrieved successfully
+ */
+router.get('/teacher/:teacherId', authMiddleware, getSubjectsByTeacher);
 
 /**
  * @swagger
  * /subjects/{id}:
- *   patch:
- *     summary: Update a subject
+ *   put:
+ *     summary: Update subject
  *     tags: [Subjects]
  *     security:
  *       - bearerAuth: []
@@ -103,33 +167,17 @@ router.get('/class/:classId', authMiddleware, authorizeRoles('school_admin'), ge
  *         required: true
  *         schema:
  *           type: string
- *         description: Subject ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: New name of the subject
- *                 example: Advanced Mathematics
  *     responses:
  *       200:
  *         description: Subject updated successfully
- *       400:
- *         description: Subject with this name already exists
- *       404:
- *         description: Subject not found
  */
-router.patch('/:id', authMiddleware, authorizeRoles('school_admin'), updateSubject);
+router.put('/:id', authMiddleware, updateSubject);
 
 /**
  * @swagger
  * /subjects/{id}:
  *   delete:
- *     summary: Soft delete a subject
+ *     summary: Delete subject (soft delete)
  *     tags: [Subjects]
  *     security:
  *       - bearerAuth: []
@@ -139,13 +187,52 @@ router.patch('/:id', authMiddleware, authorizeRoles('school_admin'), updateSubje
  *         required: true
  *         schema:
  *           type: string
- *         description: Subject ID
  *     responses:
  *       200:
  *         description: Subject deleted successfully
- *       404:
- *         description: Subject not found
  */
-router.delete('/:id', authMiddleware, authorizeRoles('school_admin'), deleteSubject);
+router.delete('/:id', authMiddleware, deleteSubject);
+
+/**
+ * @swagger
+ * /subjects/{subjectId}/assign-teacher:
+ *   post:
+ *     summary: Assign teacher to subject
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Teacher assigned to subject successfully
+ */
+router.post('/:subjectId/assign-teacher', authMiddleware, assignTeacherToSubject);
+
+/**
+ * @swagger
+ * /subjects/{subjectId}/remove-teacher/{teacherId}:
+ *   delete:
+ *     summary: Remove teacher assignment from subject
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Teacher removed from subject successfully
+ */
+router.delete('/:subjectId/remove-teacher/:teacherId', authMiddleware, removeTeacherFromSubject);
+
+/**
+ * @swagger
+ * /subjects/optional/{classId}:
+ *   get:
+ *     summary: Get optional subjects for a class
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Optional subjects retrieved successfully
+ */
+router.get('/optional/:classId', authMiddleware, getOptionalSubjects);
 
 module.exports = router;
