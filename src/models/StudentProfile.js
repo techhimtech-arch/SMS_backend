@@ -102,7 +102,7 @@ studentProfileSchema.virtual('currentEnrollment', {
   localField: '_id',
   foreignField: 'studentId',
   justOne: true,
-  match: { status: 'enrolled' }
+  match: { status: 'ENROLLED' }
 });
 
 // Static method to get current enrollment

@@ -127,37 +127,25 @@ const admitStudent = async (admissionData, schoolId, adminId) => {
  */
 const getAdmissionDetails = async (studentId, schoolId) => {
   try {
-    // First try Student model (for transferred students)
-    const Student = require('../models/StudentProfile');
-    let student = await Student.findOne({ 
-      _id: studentId, 
-      schoolId,
-      isActive: true 
-    })
-      .populate('classId', 'name')
-      .populate('sectionId', 'name')
-      .populate('parentUserId', 'name email phone')
-      .populate('createdBy', 'name');
-
-    if (student) {
-      return {
-        success: true,
-        data: student,
-        statusCode: 200
-      };
-    }
-
-    // If not found in Student model, try StudentProfile model
-    const studentProfile = await StudentProfile.findOne({ 
+    const StudentProfile = require('../models/StudentProfile');
+    const student = await StudentProfile.findOne({ 
       _id: studentId, 
       schoolId,
       isActive: true 
     })
       .populate('userId', 'name email role')
       .populate('parentUserId', 'name email phone')
-      .populate('currentEnrollment');
+      .populate({
+        path: 'currentEnrollment',
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'sectionId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
+      .populate('createdBy', 'name');
 
-    if (!studentProfile) {
+    if (!student) {
       return {
         success: false,
         message: 'Student not found',
@@ -167,7 +155,7 @@ const getAdmissionDetails = async (studentId, schoolId) => {
 
     return {
       success: true,
-      data: studentProfile,
+      data: student,
       statusCode: 200
     };
 
