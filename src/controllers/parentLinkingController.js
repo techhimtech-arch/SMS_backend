@@ -26,14 +26,22 @@ exports.linkParentToStudent = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
-  // Check if mapping already exists
+  // Check if mapping already exists (including deleted ones)
   let mapping = await ParentStudentMapping.findOne({
     parentId,
-    schoolId,
-    isDeleted: { $ne: true }
-  });
+    schoolId
+  }).setOptions({ includeDeleted: true });
 
   if (mapping) {
+    // If it was soft-deleted, restore it
+    if (mapping.isDeleted) {
+      mapping.isDeleted = false;
+      mapping.deletedAt = undefined;
+      mapping.deletedBy = undefined;
+      mapping.studentIds = []; // Clear old students if starting fresh or keep them? 
+      // Usually, we want to keep it clean if it was deleted, but here we add the new student below
+    }
+    
     // Add student to existing mapping
     await mapping.addStudent(studentId);
   } else {
@@ -55,10 +63,13 @@ exports.linkParentToStudent = asyncHandler(async (req, res) => {
     .populate('parentId', 'name email phone')
     .populate({
       path: 'studentIds',
-      populate: [
-        { path: 'classId', select: 'name' },
-        { path: 'sectionId', select: 'name' }
-      ]
+      populate: {
+        path: 'currentEnrollment',
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'sectionId', select: 'name' }
+        ]
+      }
     });
 
   res.status(200).json({

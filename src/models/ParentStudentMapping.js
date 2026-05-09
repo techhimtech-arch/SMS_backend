@@ -158,10 +158,13 @@ parentStudentMappingSchema.statics.getStudentsForParent = async function(parentI
     isDeleted: { $ne: true }
   }).populate({
     path: 'studentIds',
-    populate: [
-      { path: 'classId', select: 'name' },
-      { path: 'sectionId', select: 'name' }
-    ]
+    populate: {
+      path: 'currentEnrollment',
+      populate: [
+        { path: 'classId', select: 'name' },
+        { path: 'sectionId', select: 'name' }
+      ]
+    }
   });
 
   return mapping?.studentIds || [];
