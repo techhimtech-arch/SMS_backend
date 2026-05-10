@@ -31,16 +31,30 @@ const getParentDashboard = asyncHandler(async (req, res) => {
   const parentId = req.user.id;
   const schoolId = req.user.schoolId;
 
-  // Get parent's linked students
-  const mapping = await ParentStudentMapping.findByParent(parentId);
+  // Get parent's linked students with profile and enrollment data
+  const mapping = await ParentStudentMapping.findOne({
+    parentId,
+    isDeleted: { $ne: true }
+  }).populate({
+    path: 'studentIds',
+    select: 'firstName lastName admissionNumber studentPhoto',
+    populate: {
+      path: 'currentEnrollment',
+      match: { status: 'ENROLLED', schoolId },
+      populate: [
+        { path: 'classId', select: 'name' },
+        { path: 'sectionId', select: 'name' }
+      ]
+    }
+  });
   
   if (!mapping || !mapping.studentIds || mapping.studentIds.length === 0) {
     return res.status(200).json({
       success: true,
       data: {
         linkedStudents: [],
-        attendanceSummary: null,
-        feeDues: null,
+        attendanceSummary: [],
+        feeDues: [],
         latestResults: [],
         latestAnnouncements: []
       }
@@ -48,13 +62,12 @@ const getParentDashboard = asyncHandler(async (req, res) => {
   }
 
   const studentIds = mapping.studentIds.map(s => s._id.toString());
-  const currentAcademicYear = req.user.currentAcademicYear;
 
-  // Get attendance summary for all linked students
+  // Get attendance summary for all linked students (last 30 days)
   const attendanceSummary = await Promise.all(
     studentIds.map(async (studentId) => {
       const attendance = await Attendance.find({
-        student: studentId,
+        studentId,
         schoolId
       }).sort({ date: -1 }).limit(30);
 
@@ -78,17 +91,16 @@ const getParentDashboard = asyncHandler(async (req, res) => {
   const feeDues = await StudentFee.find({
     studentId: { $in: studentIds },
     schoolId,
-    isDeleted: { $ne: true },
-    'feeItems.status': { $in: ['PENDING', 'PARTIAL', 'OVERDUE'] }
-  }).populate('studentId', 'name admissionNumber');
+    isDeleted: { $ne: true }
+  }).populate('studentId', 'firstName lastName admissionNumber');
 
   const feeSummary = feeDues.map(fee => ({
     studentId: fee.studentId._id,
-    studentName: fee.studentId.name,
-    totalDue: fee.feeItems
-      .filter(item => ['PENDING', 'PARTIAL', 'OVERDUE'].includes(item.status))
-      .reduce((sum, item) => sum + item.dueAmount, 0),
-    overdueItems: fee.feeItems.filter(item => item.status === 'OVERDUE').length
+    studentName: `${fee.studentId.firstName} ${fee.studentId.lastName}`,
+    totalDue: fee.balanceAmount || 0,
+    paidAmount: fee.paidAmount || 0,
+    totalAmount: fee.totalAmount || 0,
+    status: fee.balanceAmount > 0 ? 'PENDING' : 'PAID'
   }));
 
   // Get latest results for linked students
@@ -98,8 +110,9 @@ const getParentDashboard = asyncHandler(async (req, res) => {
   })
     .sort({ createdAt: -1 })
     .limit(5)
-    .populate('studentId', 'name')
-    .populate('examId', 'name');
+    .populate('studentId', 'firstName lastName')
+    .populate('examId', 'name examDate')
+    .populate('subjectId', 'name');
 
   // Get latest announcements
   const latestAnnouncements = await Announcement.find({
@@ -107,8 +120,7 @@ const getParentDashboard = asyncHandler(async (req, res) => {
     status: 'published',
     $or: [
       { targetAudience: 'all' },
-      { targetAudience: 'parents' },
-      { targetUsers: { $elemMatch: { userId: parentId } } }
+      { targetAudience: 'parents' }
     ],
     $or: [
       { expiryDate: { $exists: false } },
@@ -121,16 +133,30 @@ const getParentDashboard = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: {
-      linkedStudents: mapping.studentIds.map(student => ({
-        _id: student._id,
-        name: student.name,
-        admissionNumber: student.admissionNumber,
-        class: student.classId,
-        section: student.sectionId
-      })),
+      linkedStudents: mapping.studentIds
+        .filter(s => s !== null)
+        .map(student => ({
+          _id: student._id,
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
+          admissionNumber: student.admissionNumber,
+          studentPhoto: student.studentPhoto,
+          class: student.currentEnrollment?.classId?.name,
+          section: student.currentEnrollment?.sectionId?.name
+        })),
       attendanceSummary,
       feeDues: feeSummary,
-      latestResults,
+      latestResults: latestResults.map(r => ({
+        _id: r._id,
+        studentId: r.studentId?._id,
+        studentName: r.studentId ? `${r.studentId.firstName || ''} ${r.studentId.lastName || ''}`.trim() : 'Unknown Student',
+        examName: r.examId?.name || 'Unknown Exam',
+        examDate: r.examId?.examDate,
+        subjectName: r.subjectId?.name || 'General',
+        marksObtained: r.marksObtained || 0,
+        maxMarks: r.maxMarks || 100,
+        percentage: r.percentage || 0,
+        grade: r.grade || 'N/A'
+      })),
       latestAnnouncements
     }
   });
