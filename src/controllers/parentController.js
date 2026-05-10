@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const ParentStudentMapping = require('../models/ParentStudentMapping');
 const StudentProfile = require('../models/StudentProfile');
 const Attendance = require('../models/Attendance');
 const StudentFee = require('../models/StudentFee');
@@ -132,13 +133,30 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   }
 
   // Get linked student info
-  const student = await StudentProfile.findOne({
+  let student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
-  })
-    .select('admissionNumber firstName lastName gender dateOfBirth classId sectionId')
-    .populate('classId', 'name')
-    .populate('sectionId', 'name');
+  });
+
+  // If not found via parentUserId, check ParentStudentMapping
+  if (!student) {
+    const mapping = await ParentStudentMapping.findOne({
+      parentId: req.user.userId,
+      isDeleted: { $ne: true }
+    }).populate('studentIds');
+    
+    if (mapping && mapping.studentIds && mapping.studentIds.length > 0) {
+      student = mapping.studentIds[0]; // Take the first linked student
+    }
+  }
+
+  if (student) {
+    // Re-query to get full details with populates
+    student = await StudentProfile.findById(student._id)
+      .select('admissionNumber firstName lastName gender dateOfBirth classId sectionId')
+      .populate('classId', 'name')
+      .populate('sectionId', 'name');
+  }
 
   res.status(200).json({
     success: true,
@@ -158,11 +176,22 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
 exports.getAttendance = asyncHandler(async (req, res, next) => {
   const { startDate, endDate } = req.query;
 
-  // Fetch student internally using parentUserId
-  const student = await StudentProfile.findOne({
+  // Fetch student internally using parentUserId or ParentStudentMapping
+  let student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   });
+
+  if (!student) {
+    const mapping = await ParentStudentMapping.findOne({
+      parentId: req.user.userId,
+      isDeleted: { $ne: true }
+    });
+    
+    if (mapping && mapping.studentIds && mapping.studentIds.length > 0) {
+      student = await StudentProfile.findById(mapping.studentIds[0]);
+    }
+  }
 
   if (!student) {
     return next(new ErrorResponse('No linked student found', 404));
@@ -194,11 +223,22 @@ exports.getAttendance = asyncHandler(async (req, res, next) => {
 
 // GET /api/parent/fees - Get linked student's fee details
 exports.getFees = asyncHandler(async (req, res, next) => {
-  // Fetch student internally using parentUserId
-  const student = await StudentProfile.findOne({
+  // Fetch student internally
+  let student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   });
+
+  if (!student) {
+    const mapping = await ParentStudentMapping.findOne({
+      parentId: req.user.userId,
+      isDeleted: { $ne: true }
+    });
+    
+    if (mapping && mapping.studentIds && mapping.studentIds.length > 0) {
+      student = await StudentProfile.findById(mapping.studentIds[0]);
+    }
+  }
 
   if (!student) {
     return next(new ErrorResponse('No linked student found', 404));
@@ -234,11 +274,22 @@ exports.getFees = asyncHandler(async (req, res, next) => {
 exports.getResults = asyncHandler(async (req, res, next) => {
   const { examId } = req.query;
 
-  // Fetch student internally using parentUserId
-  const student = await StudentProfile.findOne({
+  // Fetch student internally
+  let student = await StudentProfile.findOne({
     parentUserId: req.user.userId,
     schoolId: req.user.schoolId,
   });
+
+  if (!student) {
+    const mapping = await ParentStudentMapping.findOne({
+      parentId: req.user.userId,
+      isDeleted: { $ne: true }
+    });
+    
+    if (mapping && mapping.studentIds && mapping.studentIds.length > 0) {
+      student = await StudentProfile.findById(mapping.studentIds[0]);
+    }
+  }
 
   if (!student) {
     return next(new ErrorResponse('No linked student found', 404));

@@ -137,11 +137,11 @@ const getParentDashboard = asyncHandler(async (req, res) => {
         .filter(s => s !== null)
         .map(student => ({
           _id: student._id,
-          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.admissionNumber || 'Unknown Student',
           admissionNumber: student.admissionNumber,
           studentPhoto: student.studentPhoto,
-          class: student.currentEnrollment?.classId?.name,
-          section: student.currentEnrollment?.sectionId?.name
+          class: student.currentEnrollment?.classId?.name || 'No Class',
+          section: student.currentEnrollment?.sectionId?.name || 'No Section'
         })),
       attendanceSummary,
       feeDues: feeSummary,
