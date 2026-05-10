@@ -284,10 +284,10 @@ const getStudentDetail = asyncHandler(async (req, res) => {
     data: {
       profile: {
         _id: student._id,
-        name: student.name,
+        name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
         admissionNumber: student.admissionNumber,
-        class: student.classId,
-        section: student.sectionId,
+        class: student.classId?.name || 'N/A',
+        section: student.sectionId?.name || 'N/A',
         dateOfBirth: student.dateOfBirth,
         gender: student.gender,
         address: student.address,
@@ -320,10 +320,19 @@ const getLinkedStudents = asyncHandler(async (req, res) => {
 
   const students = await ParentStudentMapping.getStudentsForParent(req.user.id);
 
+  const formattedStudents = students.map(student => ({
+    _id: student._id,
+    name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
+    admissionNumber: student.admissionNumber,
+    studentPhoto: student.studentPhoto,
+    class: student.currentEnrollment?.classId?.name || 'N/A',
+    section: student.currentEnrollment?.sectionId?.name || 'N/A'
+  }));
+
   res.status(200).json({
     success: true,
-    count: students.length,
-    data: students
+    count: formattedStudents.length,
+    data: formattedStudents
   });
 });
 
@@ -372,10 +381,10 @@ const getChildAttendance = asyncHandler(async (req, res) => {
     data: {
       student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
       summary: {
-        total,
-        present,
-        absent,
-        late,
+        totalDays: total,
+        presentDays: present,
+        absentDays: absent,
+        lateDays: late,
         percentage: total > 0 ? Math.round((present / total) * 100) : 0
       },
       records: attendance
@@ -415,12 +424,10 @@ const getChildFees = asyncHandler(async (req, res) => {
     success: true,
     data: {
       student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
-      fees: fees || {
-        totalAmount: 0,
-        paidAmount: 0,
-        balanceAmount: 0,
-        dueAmount: 0
-      }
+      totalFee: fees?.totalAmount || 0,
+      paidAmount: fees?.paidAmount || 0,
+      dueAmount: fees?.balanceAmount || 0,
+      feeHeads: fees?.feeSummary || [] // Mapping feeSummary to feeHeads for frontend
     }
   });
 });
@@ -461,10 +468,23 @@ const getChildResults = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: {
-      student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
-      results
-    }
+    data: results.map(r => ({
+      examName: r.examId?.name || 'Unknown Exam',
+      examDate: r.examId?.examDate,
+      examType: 'Standard', // Placeholder as not explicitly in model
+      grade: r.overallGrade || 'N/A',
+      obtainedMarks: r.totalMarks || 0,
+      totalMarks: r.maxTotalMarks || 0,
+      percentage: r.percentage || 0,
+      status: r.status?.toUpperCase() || 'PUBLISHED',
+      subjects: r.subjects.map(s => ({
+        name: s.subjectId?.name || 'Unknown',
+        obtainedMarks: s.marksObtained,
+        totalMarks: s.maxMarks,
+        percentage: s.maxMarks > 0 ? (s.marksObtained / s.maxMarks) * 100 : 0,
+        grade: s.grade
+      }))
+    }))
   });
 });
 
@@ -627,12 +647,27 @@ const getChildHomework = asyncHandler(async (req, res, next) => {
   // Add submission status to homework
   const homeworkWithStatus = homework.map(hw => {
     const submission = submissions.find(s => s.assignmentId.toString() === hw._id.toString());
+    
+    // Determine status for frontend
+    let status = 'pending';
+    if (submission) {
+      status = submission.status === 'GRADED' ? 'graded' : 'submitted';
+    } else if (new Date(hw.dueDate) < new Date()) {
+      status = 'overdue';
+    }
+
     return {
-      ...hw.toObject(),
-      submission: submission || null,
+      _id: hw._id,
+      title: hw.title,
+      description: hw.description,
+      subject: hw.subjectId?.name || 'Unknown',
+      dueDate: hw.dueDate,
+      status: status,
       isSubmitted: !!submission,
-      isOverdue: new Date(hw.dueDate) < new Date() && !submission,
-      daysUntilDue: Math.ceil((new Date(hw.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+      submittedDate: submission?.submittedAt,
+      grade: submission?.grade,
+      maxMarks: hw.maxMarks,
+      obtainedMarks: submission?.marksObtained
     };
   });
 

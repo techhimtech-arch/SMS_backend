@@ -153,9 +153,14 @@ exports.getProfile = asyncHandler(async (req, res, next) => {
   if (student) {
     // Re-query to get full details with populates
     student = await StudentProfile.findById(student._id)
-      .select('admissionNumber firstName lastName gender dateOfBirth classId sectionId')
-      .populate('classId', 'name')
-      .populate('sectionId', 'name');
+      .select('admissionNumber firstName lastName gender dateOfBirth')
+      .populate({
+        path: 'currentEnrollment',
+        populate: [
+          { path: 'classId', select: 'name' },
+          { path: 'sectionId', select: 'name' }
+        ]
+      });
   }
 
   res.status(200).json({
