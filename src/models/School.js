@@ -9,6 +9,8 @@ const schoolSchema = new mongoose.Schema(
     subscriptionStatus: { type: String, default: 'trial' },
     subscriptionExpiry: { type: Date },
     isActive: { type: Boolean, default: true },
+    logo: { type: String },
+    signature: { type: String },
   },
   { timestamps: true }
 );
