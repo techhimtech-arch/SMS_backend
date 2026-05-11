@@ -3,7 +3,7 @@ const School = require('../models/School');
 const logger = require('../utils/logger');
 
 /**
- * @desc    Get current school details
+ * @desc    Get current school details (via token)
  * @route   GET /api/v1/schools/me
  * @access  Private
  */
@@ -11,16 +11,25 @@ const getMySchool = asyncHandler(async (req, res) => {
   const school = await School.findById(req.user.schoolId);
   
   if (!school) {
-    return res.status(404).json({
-      success: false,
-      message: 'School not found'
-    });
+    return res.status(404).json({ success: false, message: 'School not found' });
   }
 
-  res.status(200).json({
-    success: true,
-    data: school
-  });
+  res.status(200).json({ success: true, data: school });
+});
+
+/**
+ * @desc    Get school by ID
+ * @route   GET /api/v1/schools/:id
+ * @access  Private
+ */
+const getSchoolById = asyncHandler(async (req, res) => {
+  const school = await School.findById(req.params.id);
+
+  if (!school) {
+    return res.status(404).json({ success: false, message: 'School not found' });
+  }
+
+  res.status(200).json({ success: true, data: school });
 });
 
 /**
@@ -74,5 +83,6 @@ const updateMySchool = asyncHandler(async (req, res) => {
 
 module.exports = {
   getMySchool,
+  getSchoolById,
   updateMySchool
 };
