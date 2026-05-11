@@ -51,6 +51,8 @@ const adminQuizRoutes = require('./routes/adminQuizRoutes');
 // Student remarks system routes
 const studentRemarkRoutes = require('./routes/studentRemarkRoutes');
 const timetablePeriodRoutes = require('./routes/timetablePeriodRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+
 
 
 // Middleware imports
@@ -207,6 +209,8 @@ app.use('/api/v1/admin/quizzes', adminQuizRoutes);
 // Student remarks system routes
 app.use('/api/v1/student-remarks', studentRemarkRoutes);
 app.use('/api/v1/timetable-periods', timetablePeriodRoutes);
+app.use('/api/v1/upload', uploadRoutes);
+
 
 
 // ===========================================

@@ -467,7 +467,7 @@ const updateMyProfile = asyncHandler(async (req, res) => {
     }
 
     // Update user fields
-    const allowedUpdates = ['name', 'email', 'phone', 'address'];
+    const allowedUpdates = ['name', 'email', 'phone', 'address', 'profileImage'];
     const updates = {};
     
     allowedUpdates.forEach(field => {
