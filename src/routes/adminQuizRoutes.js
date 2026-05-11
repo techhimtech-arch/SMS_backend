@@ -183,24 +183,9 @@ router.get(
       .sort((a, b) => b.quizCount - a.quizCount)
       .slice(0, 5);
 
-    // Top performers
-    const studentScores = {};
-    submissions.forEach(sub => {
-      if (!studentScores[sub.studentId]) {
-        studentScores[sub.studentId] = { scores: [], count: 0 };
-      }
-      studentScores[sub.studentId].scores.push(sub.score || 0);
-      studentScores[sub.studentId].count += 1;
-    });
-
-    analytics.topPerformers = Object.entries(studentScores)
-      .map(([studentId, data]) => ({
-        studentId,
-        averageScore: (data.scores.reduce((a, b) => a + b, 0) / data.count).toFixed(2),
-        totalQuizzes: data.count
-      }))
-      .sort((a, b) => b.averageScore - a.averageScore)
-      .slice(0, 10);
+    // Improved Top Performers using aggregation
+    const topPerformers = await QuizSubmission.getSchoolLeaderboard(req.user.schoolId, 10);
+    analytics.topPerformers = topPerformers;
 
     res.status(200).json({
       success: true,
