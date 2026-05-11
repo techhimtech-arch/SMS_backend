@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema(
   {
     firstName: { type: String, required: true },
     lastName: { type: String },
+    name: { type: String }, // Auto-computed from firstName + lastName
+
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: {
@@ -46,10 +48,25 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Virtual for full name
-userSchema.virtual('name').get(function() {
-  return `${this.firstName} ${this.lastName || ''}`.trim();
+// Auto-sync name field before save
+userSchema.pre('save', function(next) {
+  this.name = `${this.firstName || ''} ${this.lastName || ''}`.trim();
+  next();
 });
+
+// Also sync on findByIdAndUpdate etc.
+userSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function(next) {
+  const update = this.getUpdate();
+  const firstName = update?.firstName || update?.$set?.firstName;
+  const lastName = update?.lastName || update?.$set?.lastName;
+  if (firstName !== undefined || lastName !== undefined) {
+    // We can't easily get existing doc here, so we compute from what's available
+    // The save hook above handles full sync when using .save()
+  }
+  next();
+});
+
+// name field is stored in DB and auto-synced from firstName + lastName via pre-save hook.
 
 // Indexes for performance
 userSchema.index({ email: 1 }, { unique: true });

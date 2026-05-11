@@ -60,7 +60,7 @@ exports.linkParentToStudent = asyncHandler(async (req, res) => {
 
   // Populate for response
   mapping = await ParentStudentMapping.findById(mapping._id)
-    .populate('parentId', 'name email phone')
+    .populate('parentId', 'firstName lastName email phone')
     .populate({
       path: 'studentIds',
       populate: {
@@ -138,7 +138,7 @@ exports.getLinkedStudents = asyncHandler(async (req, res) => {
     success: true,
     data: {
       parentId,
-      parentName: parent.name,
+      parentName: `${parent.firstName || ''} ${parent.lastName || ''}`.trim(),
       linkedStudents,
       count: linkedStudents.length
     }
@@ -165,7 +165,7 @@ exports.getStudentLinkedParents = asyncHandler(async (req, res) => {
     success: true,
     data: {
       studentId,
-      studentName: student.name,
+      studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
       linkedParents: mappings,
       count: mappings.length
     }

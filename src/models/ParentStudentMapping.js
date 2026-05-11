@@ -148,7 +148,7 @@ parentStudentMappingSchema.statics.findByStudent = function(studentId) {
   return this.find({
     studentIds: studentId,
     isDeleted: { $ne: true }
-  }).populate('parentId', 'name email phone');
+  }).populate('parentId', 'firstName lastName email phone');
 };
 
 // Static method to get all students for a parent
