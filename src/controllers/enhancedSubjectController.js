@@ -477,7 +477,7 @@ const assignTeacherToSubject = asyncHandler(async (req, res) => {
       subjectId,
       classId: subject.classId,
       sectionId,
-      academicYearId: subject.academicYearId,
+      academicYearId: subject.academicYearId || req.user.academicYearId,
       role,
       schoolId: req.user.schoolId,
       createdBy: req.user.userId

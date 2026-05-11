@@ -120,12 +120,12 @@ const createFeeStructure = asyncHandler(async (req, res) => {
 
   const feeData = {
     ...req.body,
-    createdBy: req.user._id
+    createdBy: req.user.userId
   };
 
   const result = await feeService.createFeeStructure(
     feeData,
-    req.user._id,
+    req.user.userId,
     req.user.schoolId
   );
 
@@ -209,12 +209,12 @@ const processPayment = asyncHandler(async (req, res) => {
 
   const paymentData = {
     ...req.body,
-    collectedBy: req.user._id
+    collectedBy: req.user.userId
   };
 
   const result = await feeService.processPayment(
     paymentData,
-    req.user._id,
+    req.user.userId,
     req.user.schoolId
   );
 
