@@ -189,10 +189,15 @@ const getStudentDetail = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get student profile
+  // Get student profile with enrollment
   const student = await Student.findById(studentId)
-    .populate('classId', 'name')
-    .populate('sectionId', 'name');
+    .populate({
+      path: 'currentEnrollment',
+      populate: [
+        { path: 'classId', select: 'name' },
+        { path: 'sectionId', select: 'name' }
+      ]
+    });
 
   if (!student) {
     return res.status(404).json({
@@ -201,9 +206,9 @@ const getStudentDetail = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get attendance summary
+  // Get attendance summary (fix: field is 'studentId' not 'student')
   const attendanceRecords = await Attendance.find({
-    student: studentId
+    studentId
   }).sort({ date: -1 }).limit(30);
 
   const attendanceSummary = {
@@ -232,11 +237,13 @@ const getStudentDetail = asyncHandler(async (req, res) => {
     status: result.status
   }));
 
-  // Get assignments
+  // Get assignments using enrollment classId/sectionId
+  const enrolledClassId = student.currentEnrollment?.classId?._id;
+  const enrolledSectionId = student.currentEnrollment?.sectionId?._id;
+
   const assignments = await Assignment.find({
-    classId: student.classId?._id,
-    sectionId: student.sectionId?._id,
-    ...(req.user.academicYearId ? { academicYearId: req.user.academicYearId } : {}),
+    ...(enrolledClassId ? { classId: enrolledClassId } : {}),
+    ...(enrolledSectionId ? { sectionId: enrolledSectionId } : {}),
     status: 'PUBLISHED',
     isDeleted: { $ne: true }
   }).sort({ dueDate: -1 }).limit(10);
@@ -286,8 +293,10 @@ const getStudentDetail = asyncHandler(async (req, res) => {
         _id: student._id,
         name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
         admissionNumber: student.admissionNumber,
-        class: student.classId?.name || 'N/A',
-        section: student.sectionId?.name || 'N/A',
+        class: student.currentEnrollment?.classId?.name || 'N/A',
+        section: student.currentEnrollment?.sectionId?.name || 'N/A',
+        classId: student.currentEnrollment?.classId?._id || null,
+        sectionId: student.currentEnrollment?.sectionId?._id || null,
         dateOfBirth: student.dateOfBirth,
         gender: student.gender,
         address: student.address,
@@ -509,11 +518,15 @@ const getChildAnnouncements = asyncHandler(async (req, res) => {
 
   // Get student info with class
   const student = await Student.findById(studentId)
-    .select('name admissionNumber classId sectionId')
-    .populate('classId', '_id name');
+    .select('firstName lastName admissionNumber')
+    .populate({
+      path: 'currentEnrollment',
+      populate: { path: 'classId', select: '_id name' }
+    });
   if (!student) {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
+  const enrolledClassId = student.currentEnrollment?.classId?._id;
 
   // Get announcements for school and class
   const announcements = await Announcement.find({
@@ -522,7 +535,7 @@ const getChildAnnouncements = asyncHandler(async (req, res) => {
     $or: [
       { targetAudience: 'all' },
       { targetAudience: 'parents' },
-      { classId: student.classId?._id }
+      { classId: enrolledClassId }
     ],
     $or: [
       { expiryDate: { $exists: false } },
@@ -559,11 +572,13 @@ const getChildTimetable = asyncHandler(async (req, res) => {
 
   // Get student info with class
   const student = await Student.findById(studentId)
-    .select('name admissionNumber classId')
+    .select('firstName lastName admissionNumber')
     .populate({
-      path: 'classId',
-      select: 'name',
-      populate: { path: 'timetable' }
+      path: 'currentEnrollment',
+      populate: [
+        { path: 'classId', select: 'name' },
+        { path: 'timetable' }
+      ]
     });
   if (!student) {
     return res.status(404).json({ success: false, message: 'Student not found' });
@@ -573,8 +588,8 @@ const getChildTimetable = asyncHandler(async (req, res) => {
     success: true,
     data: {
       student: { _id: student._id, name: student.name, admissionNumber: student.admissionNumber },
-      class: student.classId,
-      timetable: student.classId?.timetable || []
+      class: student.currentEnrollment?.classId,
+      timetable: student.currentEnrollment?.timetable || []
     }
   });
 });
