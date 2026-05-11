@@ -34,13 +34,15 @@ const createUser = asyncHandler(async (req, res) => {
 
     // Create user
     const user = await User.create({
-      name,
+      firstName,
+      lastName,
       email,
       password: hashedPassword,
       role,
       schoolId: schoolId || req.user.schoolId,
       createdBy: req.user._id
     });
+
 
     // Remove password from response
     user.password = undefined;
@@ -221,7 +223,7 @@ const updateUser = asyncHandler(async (req, res) => {
     }
 
     // Update user fields
-    const allowedUpdates = ['name', 'email', 'role'];
+    const allowedUpdates = ['firstName', 'lastName', 'email', 'role', 'phone', 'address', 'profileImage'];
     const updates = {};
     
     allowedUpdates.forEach(field => {
@@ -229,18 +231,6 @@ const updateUser = asyncHandler(async (req, res) => {
         updates[field] = req.body[field];
       }
     });
-
-    // Handle firstName and lastName combination for name field
-    if (req.body.firstName !== undefined || req.body.lastName !== undefined) {
-      const currentUser = await User.findById(req.params.id);
-      const currentName = currentUser.name || '';
-      const nameParts = currentName.split(' ');
-      
-      const firstName = req.body.firstName !== undefined ? req.body.firstName : nameParts[0];
-      const lastName = req.body.lastName !== undefined ? req.body.lastName : nameParts.slice(1).join(' ');
-      
-      updates.name = `${firstName} ${lastName}`.trim();
-    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
@@ -467,7 +457,7 @@ const updateMyProfile = asyncHandler(async (req, res) => {
     }
 
     // Update user fields
-    const allowedUpdates = ['name', 'email', 'phone', 'address', 'profileImage'];
+    const allowedUpdates = ['firstName', 'lastName', 'email', 'phone', 'address', 'profileImage'];
     const updates = {};
     
     allowedUpdates.forEach(field => {

@@ -21,7 +21,8 @@ class AuthService {
    * Register a new school with admin
    */
   async registerSchool(registrationData) {
-    const { schoolName, schoolEmail, adminName, adminEmail, adminPassword } = registrationData;
+    const { schoolName, schoolEmail, adminFirstName, adminLastName, adminEmail, adminPassword } = registrationData;
+
 
     // Check if school already exists
     const existingSchool = await School.findOne({ email: schoolEmail });
@@ -44,7 +45,8 @@ class AuthService {
 
     // Create Admin User
     const adminUser = new User({
-      name: adminName,
+      firstName: adminFirstName,
+      lastName: adminLastName,
       email: adminEmail,
       password: hashedPassword,
       role: 'school_admin',
@@ -119,11 +121,14 @@ class AuthService {
       refreshToken,
       user: {
         id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         name: user.name,
         email: user.email,
         role: user.role,
         schoolId: user.schoolId,
       }
+
     };
   }
 
