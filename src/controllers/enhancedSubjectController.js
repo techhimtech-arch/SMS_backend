@@ -442,10 +442,7 @@ const assignTeacherToSubject = asyncHandler(async (req, res) => {
       role = roleMap[role.toLowerCase()];
     }
 
-    // Explicit validation for sectionId as it's required by the model
-    if (!sectionId) {
-      return sendError(res, 400, 'Section ID is required for teacher assignment');
-    }
+    // sectionId is optional — null means assigned to whole class
 
     // Validate subject exists
     const subject = await Subject.findOne({
