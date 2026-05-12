@@ -117,12 +117,15 @@ class FeeService {
    */
   async getFeeStructures(academicYearId, classId, schoolId) {
     try {
-      const feeStructures = await ImprovedFeeStructure.find({
-        academicYearId,
-        classId,
+      const query = {
         schoolId,
         isActive: true
-      })
+      };
+
+      if (academicYearId) query.academicYearId = academicYearId;
+      if (classId) query.classId = classId;
+
+      const feeStructures = await ImprovedFeeStructure.find(query)
       .populate('createdBy', 'name')
       .sort({ feeType: 1, dueDate: 1 });
       

@@ -105,16 +105,16 @@ router.post('/structure', authMiddleware, authorizeRoles('school_admin'), valida
  *     parameters:
  *       - in: query
  *         name: academicYearId
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
- *         description: Academic year ID
+ *         description: Academic year ID (defaults to current if omitted)
  *       - in: query
  *         name: classId
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
- *         description: Class ID
+ *         description: Class ID (returns all classes if omitted)
  *     responses:
  *       200:
  *         description: Fee structures retrieved successfully

@@ -7,12 +7,12 @@ const FeePayment = require('../models/FeePayment');
 const feeService = require('../services/feeService');
 const logger = require('../utils/logger');
 const auditLogger = require('../utils/auditLogger');
+const { getCurrentAcademicYearOrThrow } = require('../utils/academicYearHelper');
 
 // Validation middleware for fee structure creation
 const validateFeeStructure = [
   body('academicYearId')
-    .notEmpty()
-    .withMessage('Academic year ID is required')
+    .optional()
     .isMongoId()
     .withMessage('Invalid academic year ID'),
   
@@ -118,8 +118,15 @@ const createFeeStructure = asyncHandler(async (req, res) => {
     });
   }
 
+  let { academicYearId } = req.body;
+  if (!academicYearId) {
+    const currentYear = await getCurrentAcademicYearOrThrow(req.user.schoolId);
+    academicYearId = currentYear._id;
+  }
+
   const feeData = {
     ...req.body,
+    academicYearId,
     createdBy: req.user.userId
   };
 
@@ -134,14 +141,13 @@ const createFeeStructure = asyncHandler(async (req, res) => {
 
 // Get fee structures
 const getFeeStructures = asyncHandler(async (req, res) => {
-  const { academicYearId, classId } = req.query;
+  let { academicYearId, classId } = req.query;
   const { schoolId } = req.user;
 
-  if (!academicYearId || !classId) {
-    return res.status(400).json({
-      success: false,
-      message: 'Academic year ID and Class ID are required'
-    });
+  // Default to current academic year if not provided
+  if (!academicYearId) {
+    const currentYear = await getCurrentAcademicYearOrThrow(schoolId);
+    academicYearId = currentYear._id;
   }
 
   const result = await feeService.getFeeStructures(
