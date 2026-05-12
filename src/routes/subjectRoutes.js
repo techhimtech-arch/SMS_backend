@@ -172,6 +172,7 @@ router.get('/teacher/:teacherId', authMiddleware, getSubjectsByTeacher);
  *         description: Subject updated successfully
  */
 router.put('/:id', authMiddleware, updateSubject);
+router.patch('/:id', authMiddleware, updateSubject);
 
 /**
  * @swagger
