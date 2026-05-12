@@ -139,6 +139,27 @@ const createFeeStructure = asyncHandler(async (req, res) => {
   res.status(result.success ? 201 : 400).json(result);
 });
 
+// Update fee structure
+const updateFeeStructure = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const feeId = id || req.body.id;
+
+  if (!feeId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Fee structure ID is required'
+    });
+  }
+
+  const result = await feeService.updateFeeStructure(
+    feeId,
+    req.body,
+    req.user.schoolId
+  );
+
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 // Create multiple fee structures at once
 const bulkCreateFeeStructure = asyncHandler(async (req, res) => {
   const { academicYearId, classIds, fees } = req.body;
@@ -841,6 +862,7 @@ const processRefund = asyncHandler(async (req, res) => {
 
 module.exports = {
   createFeeStructure,
+  updateFeeStructure,
   getFeeStructures,
   getStudentFeeSummary,
   getClassFeeSummary,

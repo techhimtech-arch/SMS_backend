@@ -244,6 +244,41 @@ class FeeService {
   }
 
   /**
+   * Update fee structure
+   */
+  async updateFeeStructure(id, updateData, schoolId) {
+    try {
+      const feeStructure = await ImprovedFeeStructure.findOneAndUpdate(
+        { _id: id, schoolId },
+        updateData,
+        { new: true, runValidators: true }
+      );
+      
+      if (!feeStructure) {
+        return { success: false, message: 'Fee structure not found' };
+      }
+      
+      return {
+        success: true,
+        message: 'Fee structure updated successfully',
+        data: feeStructure
+      };
+    } catch (error) {
+      logger.error('Failed to update fee structure', {
+        error: error.message,
+        id,
+        schoolId
+      });
+      
+      return {
+        success: false,
+        message: 'Failed to update fee structure',
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Get student fee summary
    */
   async getStudentFeeSummary(studentId, academicYearId, schoolId) {

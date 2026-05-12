@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {
   createFeeStructure,
+  updateFeeStructure,
   getFeeStructures,
   getStudentFeeSummary,
   getClassFeeSummary,
@@ -96,6 +97,8 @@ const { authorizeRoles } = require('../middlewares/roleAuthorization');
  *         description: Unauthorized
  */
 router.post('/structure', authMiddleware, authorizeRoles('school_admin'), validateFeeStructure, createFeeStructure);
+router.put('/structure/:id', authMiddleware, authorizeRoles('school_admin'), updateFeeStructure);
+router.put('/structure', authMiddleware, authorizeRoles('school_admin'), updateFeeStructure);
 
 // Bulk Fee Structure
 router.post('/structure/bulk', authMiddleware, authorizeRoles('school_admin'), bulkCreateFeeStructure);
