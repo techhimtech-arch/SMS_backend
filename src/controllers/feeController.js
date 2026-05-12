@@ -139,6 +139,39 @@ const createFeeStructure = asyncHandler(async (req, res) => {
   res.status(result.success ? 201 : 400).json(result);
 });
 
+// Create multiple fee structures at once
+const bulkCreateFeeStructure = asyncHandler(async (req, res) => {
+  const { academicYearId, classIds, fees } = req.body;
+
+  if (!classIds || !Array.isArray(classIds) || classIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'classIds must be a non-empty array' });
+  }
+
+  if (!fees || !Array.isArray(fees) || fees.length === 0) {
+    return res.status(400).json({ success: false, message: 'fees must be a non-empty array' });
+  }
+
+  const result = await feeService.bulkCreateFeeStructure(
+    req.body,
+    req.user.userId,
+    req.user.schoolId
+  );
+
+  res.status(result.success ? 201 : 400).json(result);
+});
+
+// Fee Head Management
+const createFeeHead = asyncHandler(async (req, res) => {
+  const result = await feeService.createFeeHead(req.body, req.user.schoolId, req.user.userId);
+  res.status(result.success ? 201 : 400).json(result);
+});
+
+const getFeeHeads = asyncHandler(async (req, res) => {
+  const result = await feeService.getFeeHeads(req.user.schoolId);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+
 // Get fee structures
 const getFeeStructures = asyncHandler(async (req, res) => {
   let { academicYearId, classId } = req.query;
@@ -821,6 +854,9 @@ module.exports = {
   getFeeReceipt,
   validateFeeStructure,
   validatePayment,
+  bulkCreateFeeStructure,
+  createFeeHead,
+  getFeeHeads,
   // Phase 5 methods
   generateStudentFees,
   getStudentFees,

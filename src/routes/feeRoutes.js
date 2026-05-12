@@ -14,6 +14,9 @@ const {
   getFeeDashboard,
   getStudentFeeDetails,
   getFeeReceipt,
+  bulkCreateFeeStructure,
+  createFeeHead,
+  getFeeHeads,
   validateFeeStructure,
   validatePayment
 } = require('../controllers/feeController');
@@ -93,6 +96,13 @@ const { authorizeRoles } = require('../middlewares/roleAuthorization');
  *         description: Unauthorized
  */
 router.post('/structure', authMiddleware, authorizeRoles('school_admin'), validateFeeStructure, createFeeStructure);
+
+// Bulk Fee Structure
+router.post('/structure/bulk', authMiddleware, authorizeRoles('school_admin'), bulkCreateFeeStructure);
+
+// Fee Head Routes
+router.post('/heads', authMiddleware, authorizeRoles('school_admin'), createFeeHead);
+router.get('/heads', authMiddleware, authorizeRoles('school_admin', 'accountant'), getFeeHeads);
 
 /**
  * @swagger

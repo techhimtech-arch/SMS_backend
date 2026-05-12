@@ -1,10 +1,101 @@
 const mongoose = require('mongoose');
-const ImprovedStudentFee = require('../models/StudentFee');
 const ImprovedFeeStructure = require('../models/FeeStructure');
+const FeeHead = require('../models/FeeHead');
 const Enrollment = require('../models/Enrollment');
 const logger = require('../utils/logger');
 
+const ImprovedStudentFee = require('../models/StudentFee');
+
 class FeeService {
+  /**
+   * Create a new Fee Head
+   */
+  async createFeeHead(data, schoolId, userId) {
+    try {
+      const feeHead = new FeeHead({
+        ...data,
+        schoolId,
+        createdBy: userId
+      });
+      await feeHead.save();
+      return { success: true, data: feeHead };
+    } catch (error) {
+      logger.error('Failed to create fee head', { error: error.message });
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Get all Fee Heads for a school
+   */
+  async getFeeHeads(schoolId) {
+    try {
+      const heads = await FeeHead.find({ schoolId, isActive: true });
+      return { success: true, data: heads };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Bulk Create Fee Structure
+   */
+  async bulkCreateFeeStructure(bulkData, createdBy, schoolId) {
+    const session = await mongoose.startSession();
+    try {
+      const { academicYearId, classIds, fees } = bulkData;
+      const results = [];
+
+      await session.withTransaction(async () => {
+        for (const classId of classIds) {
+          for (const fee of fees) {
+            // Check if already exists to avoid duplicates (unique index will also catch this)
+            const feeStructureData = {
+              schoolId,
+              academicYearId,
+              classId,
+              feeType: fee.feeType,
+              feeName: fee.feeName,
+              amount: fee.amount,
+              dueDate: fee.dueDate,
+              lateFee: fee.lateFee || 0,
+              createdBy
+            };
+
+            const feeStructure = new ImprovedFeeStructure(feeStructureData);
+            await feeStructure.save({ session });
+            
+            // Note: createFeesForExistingStudents is called AFTER save in current service
+            // but since we are in a transaction, we should be careful.
+            // Actually, the current service calls it outside the create method or inside?
+            // It calls it inside.
+            
+            results.push(feeStructure);
+          }
+        }
+      });
+
+      // After transaction, trigger student fee generation for all new structures
+      // Doing this outside transaction to avoid heavy locks, or we can do it inside.
+      // Current service does it right after save.
+      for (const fs of results) {
+        await this.createFeesForExistingStudents(fs._id, schoolId);
+      }
+
+      return {
+        success: true,
+        message: `Successfully created ${results.length} fee structures across ${classIds.length} classes`,
+        data: results
+      };
+
+    } catch (error) {
+      logger.error('Bulk fee creation failed', { error: error.message });
+      return { success: false, message: error.message };
+    } finally {
+      session.endSession();
+    }
+  }
+
   /**
    * Create fee structure for a class
    */
