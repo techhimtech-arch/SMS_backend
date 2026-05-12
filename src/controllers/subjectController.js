@@ -38,7 +38,8 @@ const getAllSubjects = asyncHandler(async (req, res) => {
         sort: { name: 1 },
         populate: [
           { path: 'classId', select: 'name' },
-          { path: 'teacherIds', select: 'name' }
+          { path: 'teacherIds', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
         ]
       }
     );
@@ -192,7 +193,8 @@ const getSubjectsByClass = asyncHandler(async (req, res) => {
         sort: { name: 1 },
         populate: [
           { path: 'teacherIds', select: 'name email' },
-          { path: 'classId', select: 'name' }
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
         ]
       }
     );
@@ -249,7 +251,8 @@ const getSubjectsByTeacher = asyncHandler(async (req, res) => {
       {
         sort: { name: 1 },
         populate: [
-          { path: 'classId', select: 'name' }
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
         ]
       }
     );
