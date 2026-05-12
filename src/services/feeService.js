@@ -218,6 +218,8 @@ class FeeService {
 
       const feeStructures = await ImprovedFeeStructure.find(query)
       .populate('createdBy', 'name')
+      .populate('academicYearId', 'name')
+      .populate('classId', 'name')
       .sort({ feeType: 1, dueDate: 1 });
       
       return {
