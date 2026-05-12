@@ -7,6 +7,7 @@ const {
   getFeeStructures,
   getStudentFeeSummary,
   getClassFeeSummary,
+  getClassStudentsFeeStatus,
   processPayment,
   getOverdueFees,
   getPaymentHistory,
@@ -199,6 +200,7 @@ router.get('/student/:studentId', authMiddleware, authorizeRoles('school_admin',
  *         description: Unauthorized
  */
 router.get('/class-summary', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getClassFeeSummary);
+router.get('/class-students', authMiddleware, authorizeRoles('school_admin', 'teacher', 'accountant'), getClassStudentsFeeStatus);
 
 /**
  * @swagger

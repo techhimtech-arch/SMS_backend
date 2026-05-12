@@ -213,6 +213,28 @@ const getFeeStructures = asyncHandler(async (req, res) => {
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// Get fee status for all students in a class
+const getClassStudentsFeeStatus = asyncHandler(async (req, res) => {
+  const { classId, academicYearId, filter } = req.query;
+  const { schoolId } = req.user;
+
+  if (!classId || !academicYearId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Class ID and Academic year ID are required'
+    });
+  }
+
+  const result = await feeService.getClassStudentsFeeStatus(
+    classId,
+    academicYearId,
+    schoolId,
+    filter
+  );
+
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 // Get student fee summary
 const getStudentFeeSummary = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
@@ -866,6 +888,7 @@ module.exports = {
   getFeeStructures,
   getStudentFeeSummary,
   getClassFeeSummary,
+  getClassStudentsFeeStatus,
   processPayment,
   getOverdueFees,
   getPaymentHistory,

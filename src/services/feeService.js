@@ -311,6 +311,58 @@ class FeeService {
   }
 
   /**
+   * Get fee status for all students in a class
+   */
+  async getClassStudentsFeeStatus(classId, academicYearId, schoolId, filter = 'all') {
+    try {
+      const enrollments = await Enrollment.find({
+        classId,
+        academicYearId,
+        schoolId,
+        status: 'enrolled'
+      }).populate('studentId', 'firstName lastName admissionNumber');
+
+      const studentFees = await ImprovedStudentFee.find({
+        academicYearId,
+        schoolId,
+        studentId: { $in: enrollments.map(e => e.studentId?._id) }
+      });
+
+      const studentsStatus = enrollments.map(enr => {
+        const studentId = enr.studentId?._id;
+        const myFees = studentFees.filter(f => f.studentId.toString() === studentId?.toString());
+        
+        const totalAmount = myFees.reduce((sum, f) => sum + f.totalAmount, 0);
+        const totalPaid = myFees.reduce((sum, f) => sum + f.paidAmount, 0);
+        const totalBalance = myFees.reduce((sum, f) => sum + f.balanceAmount, 0);
+
+        return {
+          studentId: enr.studentId?._id,
+          admissionNumber: enr.studentId?.admissionNumber,
+          name: `${enr.studentId?.firstName} ${enr.studentId?.lastName}`,
+          totalAmount,
+          totalPaid,
+          totalBalance,
+          status: totalBalance === 0 && totalAmount > 0 ? 'PAID' : (totalPaid > 0 ? 'PARTIAL' : 'PENDING')
+        };
+      });
+
+      let filtered = studentsStatus;
+      if (filter === 'pending') {
+        filtered = studentsStatus.filter(s => s.totalBalance > 0);
+      }
+
+      return {
+        success: true,
+        data: filtered
+      };
+    } catch (error) {
+      logger.error('Failed to get class students fee status', { error: error.message });
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
    * Get class fee summary
    */
   async getClassFeeSummary(classId, academicYearId, schoolId) {
